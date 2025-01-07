@@ -71,12 +71,12 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
             : queryable
                 .Where(static x => x.Status != TimeBoundStatus.Pending)
                 .OrderByDescending(static x => x.StartedAt);
-        Task<int> totalCountTask = Task.Run(async () => (await queryable.CountAsync(cancellationToken)).Resource, cancellationToken);
+        Task<int> totalCountTask = Task.Run(async () => (await Log(queryable).CountAsync(cancellationToken)).Resource, cancellationToken);
 
         IQueryable<AnalysisContextSnapshot> pageQueryable = queryable.Skip(pageSize * (page - 1)).Take(pageSize);
 
         ICollection<AnalysisContextSnapshot> items = new List<AnalysisContextSnapshot>();
-        using FeedIterator<AnalysisContextSnapshot> feedIterator = pageQueryable.ToFeedIterator();
+        using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(pageQueryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (AnalysisContextSnapshot snapshot in await feedIterator.ReadNextAsync(cancellationToken))
@@ -136,7 +136,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         }
 
         AnalysisContextSnapshot? snapshot = null;
-        using FeedIterator<AnalysisContextSnapshot> feedIterator = queryable.Take(1).ToFeedIterator();
+        using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable.Take(1)).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             if ((await feedIterator.ReadNextAsync(cancellationToken)).FirstOrDefault() is { } snapshot0)
@@ -164,7 +164,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
             .Where(x => x.AnalysisId == analysisId)
             .OrderByDescending(static x => x.Attempt);
 
-        using FeedIterator<AnalysisContextSnapshot> feedIterator = queryable.ToFeedIterator();
+        using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (AnalysisContextSnapshot snapshot in await feedIterator.ReadNextAsync(cancellationToken))
@@ -186,7 +186,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
             .Where(static x => x.Status == TimeBoundStatus.Pending)
             .OrderBy(static x => x.QueuedAt);
 
-        using FeedIterator<AnalysisContextSnapshot> feedIterator = queryable.ToFeedIterator();
+        using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (AnalysisContextSnapshot snapshot in await feedIterator.ReadNextAsync(cancellationToken))
@@ -262,6 +262,13 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         snapshot.Progress = await fileRepository.ReadProgressAsync(snapshot.AnalysisCoord, cancellationToken) ?? new JObject();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private IQueryable<T> Log<T>(IQueryable<T> queryable)
+    {
+        LogMessages.Query(logger, queryable.ToString()!);
+        return queryable;
+    }
+
     private static partial class LogMessages
     {
         [LoggerMessage(0, LogLevel.Trace, "Upserting analysis context for analysis {AnalysisId} attempt {Attempt}")]
@@ -290,5 +297,8 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
 
         [LoggerMessage(8, LogLevel.Trace, "Getting analysis snapshots for analysis {AnalysisId}")]
         internal static partial void GettingAnalysisSnapshots(ILogger logger, Guid analysisId);
+
+        [LoggerMessage(9, LogLevel.Trace, "Query: {Queryable}")]
+        internal static partial void Query(ILogger logger, string queryable);
     }
 }

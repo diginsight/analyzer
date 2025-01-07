@@ -155,7 +155,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         TaskFactory taskFactory = new (taskScheduler);
         TaskCompletionSource tcs = new ();
 
-        object lockObj = new ();
+        Lock @lock = new ();
         IList<IAnalyzerStepExecutor> missingStepExecutors = new List<IAnalyzerStepExecutor>(stepExecutors);
         ISet<string> completedStepNames = new HashSet<string>();
 
@@ -172,7 +172,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             }
 
             IAnalyzerStepExecutor[] localStepExecutors;
-            lock (lockObj)
+            lock (@lock)
             {
                 localStepExecutors = missingStepExecutors.ToArray();
             }
@@ -185,7 +185,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
             foreach (IAnalyzerStepExecutor stepExecutor in localStepExecutors)
             {
-                lock (lockObj)
+                lock (@lock)
                 {
                     if (!completedStepNames.IsSupersetOf(stepExecutor.Meta.DependsOn))
                         continue;
@@ -212,7 +212,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                                     cancellationToken
                                 );
 
-                                lock (lockObj)
+                                lock (@lock)
                                 {
                                     completedStepNames.Add(stepExecutor.Meta.InternalName);
                                 }

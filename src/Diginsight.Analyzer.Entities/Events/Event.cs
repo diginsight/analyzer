@@ -1,4 +1,6 @@
-﻿namespace Diginsight.Analyzer.Entities.Events;
+﻿using Newtonsoft.Json.Linq;
+
+namespace Diginsight.Analyzer.Entities.Events;
 
 public abstract class Event
 {
@@ -8,5 +10,5 @@ public abstract class Event
 
     public required DateTime Timestamp { get; init; }
 
-    public required EventRecipientInput RecipientInput { get; init; }
+    public required JObject RecipientInput { get; init; }
 }

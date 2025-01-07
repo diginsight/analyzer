@@ -6,8 +6,10 @@ namespace Diginsight.Analyzer.Repositories.Models;
 
 public sealed class AnalysisContextSnapshot : ExecutionContextSnapshot
 {
+    [JsonProperty("analysisId")]
     public Guid AnalysisId { get; }
 
+    [JsonProperty("attempt")]
     public int Attempt { get; }
 
     [JsonIgnore]
@@ -17,8 +19,10 @@ public sealed class AnalysisContextSnapshot : ExecutionContextSnapshot
 
     public string AgentPool { get; init; } = null!;
 
+    [JsonProperty("queuedAt")]
     public DateTime? QueuedAt { get; init; }
 
+    [JsonProperty("startedAt")]
     public DateTime? StartedAt { get; init; }
 
     public DateTime? FinishedAt { get; init; }

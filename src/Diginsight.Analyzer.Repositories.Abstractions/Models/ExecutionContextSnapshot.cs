@@ -7,7 +7,7 @@ public abstract class ExecutionContextSnapshot
     [JsonProperty("id")]
     public string Id => ExecutionId.ToString("D");
 
-    public ExecutionKind ExecutionKind
+    public ExecutionKind Kind
     {
         get;
         init
@@ -26,9 +26,7 @@ public abstract class ExecutionContextSnapshot
     public bool IsFailed { get; init; }
 
     [JsonProperty(TypeNameHandling = TypeNameHandling.Auto)]
-    public Exception? Exception { get; init; }
-
-    public string? Reason { get; init; }
+    public Exception? Reason { get; init; }
 
     protected ExecutionContextSnapshot(Guid executionId)
     {

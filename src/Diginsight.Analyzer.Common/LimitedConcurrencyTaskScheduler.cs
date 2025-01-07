@@ -6,7 +6,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
     private static bool isCurrentThreadProcessing;
 
     private readonly LinkedList<Task> tasks = [ ];
-    private readonly object lockObj = new();
+    private readonly Lock @lock = new ();
 
     private int queuedOrRunningCount = 0;
 
@@ -22,7 +22,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
 
     protected override void QueueTask(Task task)
     {
-        lock (lockObj)
+        lock (@lock)
         {
             tasks.AddLast(task);
 
@@ -47,7 +47,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
                     {
                         Task item;
 
-                        lock (lockObj)
+                        lock (@lock)
                         {
                             if (tasks.Count == 0)
                             {
@@ -84,7 +84,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
 
     protected override bool TryDequeue(Task task)
     {
-        lock (lockObj)
+        lock (@lock)
         {
             return tasks.Remove(task);
         }
@@ -95,7 +95,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
         bool lockTaken = false;
         try
         {
-            Monitor.TryEnter(lockObj, ref lockTaken);
+            Monitor.TryEnter(@lock, ref lockTaken);
             if (lockTaken)
                 return tasks.ToArray();
             else
@@ -104,7 +104,7 @@ public sealed class LimitedConcurrencyTaskScheduler : TaskScheduler
         finally
         {
             if (lockTaken)
-                Monitor.Exit(lockObj);
+                Monitor.Exit(@lock);
         }
     }
 }

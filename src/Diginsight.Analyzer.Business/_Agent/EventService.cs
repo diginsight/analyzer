@@ -1,5 +1,6 @@
 ﻿using Diginsight.Analyzer.Entities.Events;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business;
 
@@ -18,7 +19,7 @@ internal sealed class EventService : IEventService
     }
 
     public async Task EmitAsync(
-        IEnumerable<IEventSender> eventSenders, IEnumerable<EventRecipient> eventRecipients, Func<EventRecipientInput, DateTime, Event> makeEvent
+        IEnumerable<IEventSender> eventSenders, IEnumerable<EventRecipient> eventRecipients, Func<JObject, DateTime, Event> makeEvent
     )
     {
         DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;

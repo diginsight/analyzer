@@ -77,7 +77,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
             throw AnalysisExceptions.NoSuchAnalysis;
         }
 
-        if (snapshot.FinishedAt is not null)
+        if (snapshot.FinishedAt is null)
         {
             throw AnalysisExceptions.AlreadyPendingOrRunning;
         }

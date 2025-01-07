@@ -352,10 +352,10 @@ public abstract class AnalysisController : ControllerBase
     protected sealed class EventRecipientDefinition
     {
         private readonly string? name;
-        private readonly EventRecipientInput? input;
+        private readonly JObject? input;
 
         [JsonConstructor]
-        private EventRecipientDefinition(string? name = null, EventRecipientInput? input = null)
+        private EventRecipientDefinition(string? name = null, JObject? input = null)
         {
             this.input = input;
             this.name = name;

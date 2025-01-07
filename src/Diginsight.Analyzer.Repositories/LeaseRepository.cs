@@ -52,7 +52,7 @@ internal sealed partial class LeaseRepository : ILeaseRepository, IDisposable
         IQueryable<Lease> queryable = leaseContainer.GetItemLinqQueryable<Lease>()
             .Where(x => x.Kind != null && x.Id != leaseId);
 
-        using FeedIterator<Lease> feedIterator = queryable.ToFeedIterator();
+        using FeedIterator<Lease> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (Lease lease in await feedIterator.ReadNextAsync(cancellationToken))
@@ -68,7 +68,7 @@ internal sealed partial class LeaseRepository : ILeaseRepository, IDisposable
 
         IQueryable<Lease> queryable = leaseContainer.GetItemLinqQueryable<Lease>();
 
-        using FeedIterator<Lease> feedIterator = queryable.ToFeedIterator();
+        using FeedIterator<Lease> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (Lease lease in await feedIterator.ReadNextAsync(cancellationToken))
@@ -85,7 +85,7 @@ internal sealed partial class LeaseRepository : ILeaseRepository, IDisposable
         IQueryable<Lease> queryable = leaseContainer.GetItemLinqQueryable<Lease>()
             .Where(x => x.Kind != null || x.AgentPool == agentPool);
 
-        using FeedIterator<Lease> feedIterator = queryable.ToFeedIterator();
+        using FeedIterator<Lease> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (Lease lease in await feedIterator.ReadNextAsync(cancellationToken))
@@ -93,6 +93,13 @@ internal sealed partial class LeaseRepository : ILeaseRepository, IDisposable
                 yield return lease;
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private IQueryable<T> Log<T>(IQueryable<T> queryable)
+    {
+        LogMessages.Query(logger, queryable.ToString()!);
+        return queryable;
     }
 
     private static partial class LogMessages
@@ -111,5 +118,8 @@ internal sealed partial class LeaseRepository : ILeaseRepository, IDisposable
 
         [LoggerMessage(4, LogLevel.Trace, "Getting leases active or from pool {AgentPool}")]
         internal static partial void GettingLeasesActiveOrFromPool(ILogger logger, string agentPool);
+
+        [LoggerMessage(5, LogLevel.Trace, "Query: {Queryable}")]
+        internal static partial void Query(ILogger logger, string queryable);
     }
 }

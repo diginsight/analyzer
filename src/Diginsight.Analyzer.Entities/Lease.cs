@@ -17,12 +17,13 @@ public class Lease : Expandable<Lease>
 
     public string AgentName { get; init; } = null!;
 
+    [JsonProperty("agentPool")]
     public string AgentPool { get; init; } = null!;
 
     [JsonProperty("ttl")]
     public int TtlSeconds { get; init; }
 
-    [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+    [JsonProperty("kind", NullValueHandling = NullValueHandling.Include)]
     public ExecutionKind? Kind { get; set; }
 
     [JsonConstructor]
