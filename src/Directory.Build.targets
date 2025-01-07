@@ -1,0 +1,24 @@
+<Project>
+
+  <PropertyGroup>
+    <RootNamespace Condition="$(RootNamespace.EndsWith('.Abstractions'))">$(RootNamespace.Replace('.Abstractions', ''))</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(AssemblyName.EndsWith('.Tests'))">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="**\*.DotSettings" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\packages.lock.json')">
+    <Content Remove="packages.lock.json" />
+    <None Remove="packages.lock.json" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Diginsight.Analyzer.Steps</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Diginsight.Analyzer.Business.Abstractions\Diginsight.Analyzer.Business.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

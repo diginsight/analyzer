@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Diginsight.Diagnostics" Version="$(DiginsightCoreVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <PackageReference Include="System.Linq.Async" Version="6.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Files\" />
+  </ItemGroup>
+
+</Project>

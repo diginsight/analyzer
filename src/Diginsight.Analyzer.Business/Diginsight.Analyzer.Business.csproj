@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cel.NET" Version="0.3.*" />
+    <PackageReference Include="Diginsight.Json" Version="$(DiginsightCoreVersion)" />
+    <PackageReference Include="StringTokenFormatter" Version="9.*" />
+    <!-- HACK Explicitly added to suppress NU1904 warning -->
+    <PackageReference Include="System.Drawing.Common" Version="4.*" PrivateAssets="all" />
+    <PackageReference Include="Ulid" Version="1.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Diginsight.Analyzer.Business.Abstractions\Diginsight.Analyzer.Business.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

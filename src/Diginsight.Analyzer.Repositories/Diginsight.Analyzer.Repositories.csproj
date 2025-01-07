@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Diginsight.Analyzer.Repositories.Abstractions\Diginsight.Analyzer.Repositories.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

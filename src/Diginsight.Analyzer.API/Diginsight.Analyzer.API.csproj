@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <UserSecretsId>f1baa8bb-ee07-4ffb-821f-4bdee57c151e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.*" />
+    <PackageReference Include="Scrutor" Version="5.*" />
+    <PackageReference Include="YamlDotNet" Version="16.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Diginsight.Analyzer.Business\Diginsight.Analyzer.Business.csproj" />
+    <ProjectReference Include="..\Diginsight.Analyzer.Repositories\Diginsight.Analyzer.Repositories.csproj" />
+  </ItemGroup>
+
+</Project>
