@@ -23,7 +23,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diginsight.Analyzer.Busines
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diginsight.Analyzer.API", "Diginsight.Analyzer.API\Diginsight.Analyzer.API.csproj", "{B5623857-8B8E-4631-ADCB-E0B7ECB3EB9D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diginsight.Analyzer.Steps.Basic", "Diginsight.Analyzer.Steps\Diginsight.Analyzer.Steps.Basic.csproj", "{FC9FB984-AED1-4A9B-85FA-FBA1E22E559D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Diginsight.Analyzer.Steps.Basic", "Diginsight.Analyzer.Steps.Basic\Diginsight.Analyzer.Steps.Basic.csproj", "{FC9FB984-AED1-4A9B-85FA-FBA1E22E559D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Engine", "Engine", "{77111429-E3CB-4AA5-A1FE-7BE87F184194}"
 EndProject
