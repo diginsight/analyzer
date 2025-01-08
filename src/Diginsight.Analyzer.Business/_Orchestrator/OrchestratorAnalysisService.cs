@@ -58,11 +58,11 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         CancellationToken cancellationToken
     )
     {
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput = await internalAnalysisService.CalculateStepsAsync(steps, cancellationToken);
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos = await internalAnalysisService.CalculateStepsAsync(steps, cancellationToken);
 
         return await StartAsync(
             globalMeta,
-            analyzerStepsWithInput,
+            stepExecutorProtos,
             progress,
             async (ac, ct) =>
             {
@@ -99,11 +99,11 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         }
 
         GlobalMeta finalGlobalMeta = snapshot.GlobalMeta.WithOverwrite(globalMeta);
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
 
         return await StartAsync(
             finalGlobalMeta,
-            analyzerStepsWithInput,
+            stepExecutorProtos,
             snapshot.Progress!,
             (ac, ct) => ac.ReattemptAsync(analysisId, definitionStream, ct),
             () => snapshot.AnalysisCoord with { Attempt = snapshot.Attempt + 1 },
@@ -117,7 +117,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
 
     private async Task<QueuableAnalysisCoord> StartAsync(
         GlobalMeta globalMeta,
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput,
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos,
         JObject progress,
         Func<IAgentClient, CancellationToken, Task<ExtendedAnalysisCoord>> coreStartAsync,
         Func<AnalysisCoord> makeQueuedCoord,
@@ -137,7 +137,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         {
             (executionId, object detail) = await executionService.StartAsync(
                 agentPool,
-                (lease, ct) => internalAnalysisService.HasConflictAsync(lease, analyzerStepsWithInput, ct),
+                (lease, ct) => internalAnalysisService.HasConflictAsync(lease, stepExecutorProtos, ct),
                 async (ac, ct) =>
                 {
                     (Guid executionId0, Guid analysisId0, int attempt0) = await coreStartAsync(ac, ct);
@@ -152,7 +152,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         catch (AnalysisException exception) when (ShouldQueue(exception))
         {
             coord = makeQueuedCoord();
-            IEnumerable<StepInstance> steps = analyzerStepsWithInput.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
+            IEnumerable<StepInstance> steps = stepExecutorProtos.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
             executionId = await QueueAsync(agentPool, coord, globalMeta, steps, progress, definitionStream, inputPayloads, cancellationToken);
             queued = true;
         }

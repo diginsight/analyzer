@@ -8,6 +8,8 @@ public interface IAnalyzerStepExecutor
 
     JObject Input { get; }
 
+    IStepCondition Condition { get; }
+
     bool DisableProgressFlushTimer => false;
 
     Task SetupAsync(IAnalysisContextRO analysisContext, CancellationToken cancellationToken) => Task.CompletedTask;

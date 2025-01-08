@@ -12,15 +12,19 @@ internal sealed class CopyProgressAnalyzerStepExecutor : IAnalyzerStepExecutor
 
     public StepMeta Meta { get; }
     public JObject Input { get; }
+    public IStepCondition Condition { get; }
 
     public CopyProgressAnalyzerStepExecutor(
         StepMeta meta,
         JObject input,
+        IStepCondition condition,
         ISnapshotService snapshotService
     )
     {
         Meta = meta;
         Input = input;
+        Condition = condition;
+
         this.input = input.ToObject<CopyProgressStepInput>()!;
         this.snapshotService = snapshotService;
     }

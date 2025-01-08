@@ -10,7 +10,7 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
 {
-    private readonly Func<IServiceProvider, JObject, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -21,8 +21,8 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<CopyProgressAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<CopyProgressAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject) ]);
-        makeExecutor = (sp, input) => objectFactory(sp, [ meta, input ]);
+            ActivatorUtilities.CreateFactory<CopyProgressAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
+        makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
     }
 
     public Task ValidateAsync(StrongBox<JObject> stepInputBox, CancellationToken cancellationToken)
@@ -66,5 +66,8 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
         return Task.CompletedTask;
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input) => makeExecutor(serviceProvider, input);
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
+    {
+        return makeExecutor(serviceProvider, input, condition);
+    }
 }

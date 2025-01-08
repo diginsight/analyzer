@@ -16,7 +16,7 @@ public interface IAnalyzerStep
 
     Task<bool> HasConflictAsync(IEnumerable<StepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
 
-    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input);
+    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition);
 
 #if FEATURE_REPORTS
     StepReport GetReport(TimeBoundStatus status, JObject progress) => new (Meta.InternalName, status);

@@ -18,20 +18,23 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
 
     private readonly ILogger logger;
     private readonly IPluginService pluginService;
+    private readonly ICompilerFactory compilerFactory;
     private readonly IServiceProvider serviceProvider;
 
     public InternalAnalysisService(
         ILogger<InternalAnalysisService> logger,
         IPluginService pluginService,
+        ICompilerFactory compilerFactory,
         IServiceProvider serviceProvider
     )
     {
         this.logger = logger;
         this.pluginService = pluginService;
+        this.compilerFactory = compilerFactory;
         this.serviceProvider = serviceProvider;
     }
 
-    public async Task<IEnumerable<AnalyzerStepWithInput>> CalculateStepsAsync(IEnumerable<StepInstance> steps, CancellationToken cancellationToken)
+    public async Task<IEnumerable<AnalyzerStepExecutorProto2>> CalculateStepsAsync(IEnumerable<StepInstance> steps, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, IAnalyzerStepTemplate> analyzerStepTemplates = pluginService.CreateAnalyzerStepTemplates(serviceProvider);
 
@@ -61,11 +64,11 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
                 }
             );
 
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput;
+        IEnumerable<AnalyzerStepExecutorProto1> stepExecutorProtos1;
         try
         {
-            analyzerStepsWithInput = CommonUtils.SortByDependency<AnalyzerDependencyObject, string>(dependencyObjects)
-                .Select(static x => new AnalyzerStepWithInput(x.Step, x.Input))
+            stepExecutorProtos1 = CommonUtils.SortByDependency<AnalyzerDependencyObject, string>(dependencyObjects)
+                .Select(static x => new AnalyzerStepExecutorProto1(x.Step, x.Input))
                 .ToArray();
         }
         catch (DependencyException<string> exception)
@@ -84,19 +87,25 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
             };
         }
 
-        ICollection<AnalyzerStepWithInput> validatedAnalyzerStepsWithInput = new List<AnalyzerStepWithInput>();
-        foreach ((IAnalyzerStep analyzerStep, JObject stepInput) in analyzerStepsWithInput)
+        ICollection<AnalyzerStepExecutorProto2> stepExecutorProtos2 = new List<AnalyzerStepExecutorProto2>();
+        ICompiler compiler = compilerFactory.Make();
+        foreach ((IAnalyzerStep analyzerStep, JObject stepInput) in stepExecutorProtos1)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            LogMessages.ValidatingInput(logger, analyzerStep.Meta.InternalName);
+            string internalName = analyzerStep.Meta.InternalName;
 
+            LogMessages.ValidatingInput(logger, internalName);
             StrongBox<JObject> stepInputBox = new (stepInput);
             await analyzerStep.ValidateAsync(stepInputBox, cancellationToken);
-            validatedAnalyzerStepsWithInput.Add(new AnalyzerStepWithInput(analyzerStep, stepInputBox.Value!));
+
+            LogMessages.CompilingCondition(logger, internalName);
+            IStepCondition condition = compiler.CompileCondition(analyzerStep.Meta);
+
+            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, stepInputBox.Value!, condition));
         }
 
-        return validatedAnalyzerStepsWithInput;
+        return stepExecutorProtos2;
     }
 
     public sealed class AnalyzerDependencyObject : IDependencyObject<string>
@@ -124,15 +133,15 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
         lease.Attempt = attempt;
     }
 
-    public async Task<bool> HasConflictAsync(ActiveLease lease, IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput, CancellationToken cancellationToken)
+    public async Task<bool> HasConflictAsync(ActiveLease lease, IEnumerable<AnalyzerStepExecutorProto1> stepExecutorProtos, CancellationToken cancellationToken)
     {
         if (lease is not AnalysisLease analysisLease)
         {
             return false;
         }
 
-        IEnumerable<StepInstance> steps = analyzerStepsWithInput.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
-        foreach (IAnalyzerStep analyzerStep in analyzerStepsWithInput.Select(static x => x.Step))
+        IEnumerable<StepInstance> steps = stepExecutorProtos.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
+        foreach (IAnalyzerStep analyzerStep in stepExecutorProtos.Select(static x => x.Step))
         {
             LogMessages.CheckingForConflicts(logger, analyzerStep.Meta.InternalName);
             if (await analyzerStep.HasConflictAsync(steps, analysisLease, cancellationToken))
@@ -149,10 +158,13 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
         [LoggerMessage(0, LogLevel.Debug, "Validating input with step {InternalName}")]
         internal static partial void ValidatingInput(ILogger logger, string internalName);
 
-        [LoggerMessage(1, LogLevel.Debug, "Checking for conflicts on step {InternalName}")]
+        [LoggerMessage(1, LogLevel.Debug, "Compiling condition for step {InternalName}")]
+        internal static partial void CompilingCondition(ILogger logger, string internalName);
+
+        [LoggerMessage(2, LogLevel.Debug, "Checking for conflicts on step {InternalName}")]
         internal static partial void CheckingForConflicts(ILogger logger, string internalName);
 
-        [LoggerMessage(2, LogLevel.Debug, "Sorting steps")]
+        [LoggerMessage(3, LogLevel.Debug, "Sorting steps")]
         internal static partial void SortingSteps(ILogger logger);
     }
 }

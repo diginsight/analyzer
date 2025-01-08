@@ -16,7 +16,6 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     private readonly IAgentAnalysisContextFactory analysisContextFactory;
     private readonly IAnalysisInfoRepository infoRepository;
     private readonly IEventService eventService;
-    private readonly IEvaluatorFactory evaluatorFactory;
     private readonly ICoreOptions coreOptions;
 
     public AnalysisExecutor(
@@ -25,7 +24,6 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         IAgentAnalysisContextFactory analysisContextFactory,
         IAnalysisInfoRepository infoRepository,
         IEventService eventService,
-        IEvaluatorFactory evaluatorFactory,
         IOptions<CoreOptions> coreOptions
     )
     {
@@ -34,7 +32,6 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         this.analysisContextFactory = analysisContextFactory;
         this.infoRepository = infoRepository;
         this.eventService = eventService;
-        this.evaluatorFactory = evaluatorFactory;
         this.coreOptions = coreOptions.Value;
     }
 
@@ -61,7 +58,6 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         DateTime startedAt = analysisContext.StartedAt;
         IEnumerable<EventRecipient> eventRecipients = globalMeta.EventRecipients ?? [ ];
         ExecutionCoord executionCoord = new(ExecutionKind.Analysis, executionId);
-        IEvaluator evaluator = evaluatorFactory.Make(analysisContext);
 
         await infoRepository.InsertAsync(analysisContext);
         await eventService.EmitAsync(
@@ -136,7 +132,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
             await ExecuteSideAsync(true);
 
-            await ExecuteMainAsync(stepExecutors, eventSenders, analysisContext, evaluator, parallelism, ct);
+            await ExecuteMainAsync(stepExecutors, eventSenders, analysisContext, parallelism, ct);
 
             await ExecuteSideAsync(false);
         }
@@ -146,7 +142,6 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         IEnumerable<IAnalyzerStepExecutor> stepExecutors,
         IEnumerable<IEventSender> eventSenders,
         IAnalysisContext analysisContext,
-        IEvaluator evaluator,
         int parallelism,
         CancellationToken cancellationToken
     )
@@ -185,9 +180,11 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
             foreach (IAnalyzerStepExecutor stepExecutor in localStepExecutors)
             {
+                StepMeta stepMeta = stepExecutor.Meta;
+
                 lock (@lock)
                 {
-                    if (!completedStepNames.IsSupersetOf(stepExecutor.Meta.DependsOn))
+                    if (!completedStepNames.IsSupersetOf(stepMeta.DependsOn))
                         continue;
 
                     if (!missingStepExecutors.Remove(stepExecutor))
@@ -198,7 +195,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                     .StartNew(
                         async () =>
                         {
-                            (_, string internalName) = stepExecutor.Meta;
+                            (_, string internalName) = stepMeta;
 
                             try
                             {
@@ -214,7 +211,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
                                 lock (@lock)
                                 {
-                                    completedStepNames.Add(stepExecutor.Meta.InternalName);
+                                    completedStepNames.Add(stepMeta.InternalName);
                                 }
 
                                 Enqueue();
@@ -222,7 +219,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                                 async Task ExecuteIfEnabledAsync(CancellationToken ct)
                                 {
                                     StepHistory stepHistory = analysisContext.GetStep(internalName);
-                                    if (!evaluator.TryEvalCondition(stepHistory, out bool enabled))
+                                    if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
                                     {
                                         return;
                                     }

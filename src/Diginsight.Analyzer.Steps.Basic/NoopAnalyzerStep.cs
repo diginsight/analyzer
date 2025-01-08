@@ -7,7 +7,7 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class NoopAnalyzerStep : IAnalyzerStep
 {
-    private readonly Func<IServiceProvider, JObject, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -18,9 +18,12 @@ internal sealed class NoopAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<NoopAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<NoopAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject) ]);
-        makeExecutor = (sp, input) => objectFactory(sp, [ meta, input ]);
+            ActivatorUtilities.CreateFactory<NoopAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
+        makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input) => makeExecutor(serviceProvider, input);
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
+    {
+        return makeExecutor(serviceProvider, input, condition);
+    }
 }

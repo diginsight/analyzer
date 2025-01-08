@@ -53,12 +53,12 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     {
         LogMessages.PreparingForStart(logger);
 
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput = await internalAnalysisService.CalculateStepsAsync(steps, cancellationToken);
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos = await internalAnalysisService.CalculateStepsAsync(steps, cancellationToken);
 
         Guid analysisId = ambientService.NewUlid();
         AnalysisCoord coord = new (analysisId);
 
-        Guid executionId = await StartAsync(coord, globalMeta, analyzerStepsWithInput, progress, null, null, definitionStream, inputPayloads, cancellationToken);
+        Guid executionId = await StartAsync(coord, globalMeta, stepExecutorProtos, progress, null, null, definitionStream, inputPayloads, cancellationToken);
 
         return new ExtendedAnalysisCoord(executionId, analysisId);
     }
@@ -86,9 +86,9 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         AnalysisCoord coord = snapshot.AnalysisCoord with { Attempt = attempt };
 
         GlobalMeta finalGlobalMeta = snapshot.GlobalMeta.WithOverwrite(globalMeta);
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
 
-        Guid executionId = await StartAsync(coord, finalGlobalMeta, analyzerStepsWithInput, snapshot.Progress!, null, null, definitionStream, [ ], cancellationToken);
+        Guid executionId = await StartAsync(coord, finalGlobalMeta, stepExecutorProtos, snapshot.Progress!, null, null, definitionStream, [ ], cancellationToken);
 
         return new ExtendedAnalysisCoord(executionId, analysisId, attempt);
     }
@@ -108,13 +108,13 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         }
 
         GlobalMeta globalMeta = snapshot.GlobalMeta;
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos = await internalAnalysisService.CalculateStepsAsync(snapshot.Steps, cancellationToken);
 
         AnalysisCoord coord = snapshot.AnalysisCoord;
         _ = await StartAsync(
             coord,
             globalMeta,
-            analyzerStepsWithInput,
+            stepExecutorProtos,
             snapshot.Progress!,
             executionId,
             snapshot.QueuedAt,
@@ -176,7 +176,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     private Task<Guid> StartAsync(
         AnalysisCoord coord,
         GlobalMeta globalMeta,
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput,
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos,
         JObject progress,
         Guid? requestedExecutionId,
         DateTime? queuedAt,
@@ -190,8 +190,8 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
             requestedExecutionId,
             coord,
             lease => internalAnalysisService.FillLease(lease, coord),
-            (lease, ct) => internalAnalysisService.HasConflictAsync(lease, analyzerStepsWithInput, ct),
-            (executionId, ct) => CoreStartAsync(executionId, coord, queuedAt, globalMeta, analyzerStepsWithInput, progress, definitionStream, inputPayloads, ct),
+            (lease, ct) => internalAnalysisService.HasConflictAsync(lease, stepExecutorProtos, ct),
+            (executionId, ct) => CoreStartAsync(executionId, coord, queuedAt, globalMeta, stepExecutorProtos, progress, definitionStream, inputPayloads, ct),
             cancellationToken
         );
     }
@@ -201,7 +201,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         AnalysisCoord coord,
         DateTime? queuedAt,
         GlobalMeta globalMeta,
-        IEnumerable<AnalyzerStepWithInput> analyzerStepsWithInput,
+        IEnumerable<AnalyzerStepExecutorProto2> stepExecutorProtos,
         JObject progress,
         EncodedStream? definitionStream,
         IEnumerable<InputPayload> inputPayloads,
@@ -254,10 +254,10 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         await executionService.RunDetachedAsync(
             (sp, disposables) =>
             {
-                IEnumerable<IAnalyzerStepExecutor> stepExecutors = analyzerStepsWithInput
+                IEnumerable<IAnalyzerStepExecutor> stepExecutors = stepExecutorProtos
                     .Select(x =>
                     {
-                        IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.Input);
+                        IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.Input, x.Condition);
                         // ReSharper disable once SuspiciousTypeConversion.Global
                         if (stepExecutor is IDisposable disposable)
                         {

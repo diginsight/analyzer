@@ -44,7 +44,7 @@ public static class BusinessImplExtensions
                 .AddScoped<IAnalysisExecutor, AnalysisExecutor>()
                 .AddSingleton<IEventService, EventService>()
                 .AddSingleton<IPluginService, PluginService>()
-                .AddSingleton<IEvaluatorFactory, EvaluatorFactory>()
+                .AddSingleton<ICompilerFactory, CompilerFactory>()
                 .AddSingleton<IOnCreateServiceProvider, RegisterAgentLifetimeActions>();
         }
         else

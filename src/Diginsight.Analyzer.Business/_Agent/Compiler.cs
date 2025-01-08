@@ -11,46 +11,59 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using NodaTime;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Duration = Google.Protobuf.WellKnownTypes.Duration;
 
 namespace Diginsight.Analyzer.Business;
 
-internal sealed class Evaluator : IEvaluator
+internal sealed class Compiler : ICompiler
 {
-    private readonly ConditionLibrary library;
-    private readonly IDictionary<string, object> arguments;
+    private readonly ConditionLibrary library = new ();
 
-    public Evaluator(IAnalysisContextRO analysisContext)
+    public IStepCondition CompileCondition(StepMeta stepMeta)
     {
-        library = new ConditionLibrary(analysisContext);
-        arguments = new Dictionary<string, object>()
-        {
-            [ConditionLibrary.ContextVarName] = new AnalysisContextView(analysisContext),
-            [ConditionLibrary.ProgressVarName] = analysisContext.Progress.Accept(JsonToValVisitor.Instance, default),
-        };
+        ScriptHost scriptHost = ScriptHost.NewBuilder().Registry(JsonRegistry.NewRegistry()).Build();
+        Script script = scriptHost.BuildScript(stepMeta.Condition ?? $"{ConditionLibrary.IsSucceededFunctionName}()")
+            .WithLibraries(library)
+            .Build();
+
+        return new StepCondition(script, library);
     }
 
-    public bool TryEvalCondition(StepHistory stepHistory, out bool enabled)
+    private sealed class StepCondition : IStepCondition
     {
-        try
+        private readonly Script script;
+        private readonly ConditionLibrary library;
+
+        public StepCondition(Script script, ConditionLibrary library)
         {
-            ScriptHost scriptHost = ScriptHost.NewBuilder().Registry(JsonRegistry.NewRegistry()).Build();
-
-            Script script = scriptHost.BuildScript(stepHistory.Meta.Condition ?? $"{ConditionLibrary.IsSucceededFunctionName}()")
-                .WithLibraries(library)
-                .Build();
-
-            arguments[ConditionLibrary.StepVarName] = new StepHistoryView(stepHistory);
-
-            enabled = script.Execute<bool>(arguments);
-            return true;
+            this.script = script;
+            this.library = library;
         }
-        catch (ScriptException exception)
+
+        public bool TryEvaluate(IAnalysisContextRO analysisContext, StepHistory stepHistory, out bool result)
         {
-            stepHistory.Fail(exception);
-            enabled = false;
-            return false;
+            library.AnalysisContext = analysisContext;
+
+            IDictionary<string, object> arguments = new Dictionary<string, object>()
+            {
+                [ConditionLibrary.ContextVarName] = new AnalysisContextView(analysisContext),
+                [ConditionLibrary.ProgressVarName] = analysisContext.Progress.Accept(JsonToValVisitor.Instance, default),
+                [ConditionLibrary.StepVarName] = new StepHistoryView(stepHistory),
+            };
+
+            try
+            {
+                result = script.Execute<bool>(arguments);
+                return true;
+            }
+            catch (ScriptExecutionException exception)
+            {
+                stepHistory.Fail(exception);
+                result = false;
+                return false;
+            }
         }
     }
 
@@ -104,9 +117,14 @@ internal sealed class Evaluator : IEvaluator
         public const string ProgressVarName = "progress";
         public const string StepVarName = "step";
         public const string IsSucceededFunctionName = "isSucceeded";
-        public const string IsFailedFunctionName = "isFailed";
+        private const string IsFailedFunctionName = "isFailed";
 
-        private readonly IAnalysisContextRO analysisContext;
+        [DisallowNull]
+        public IAnalysisContextRO? AnalysisContext
+        {
+            private get;
+            set => field ??= value;
+        }
 
         public IList<EnvOption> CompileOptions { get; } =
         [
@@ -132,10 +150,8 @@ internal sealed class Evaluator : IEvaluator
 
         public IList<ProgramOption> ProgramOptions { get; }
 
-        public ConditionLibrary(IAnalysisContextRO analysisContext)
+        public ConditionLibrary()
         {
-            this.analysisContext = analysisContext;
-
             ProgramOptions =
             [
                 IProgramOption.Functions(
@@ -150,7 +166,15 @@ internal sealed class Evaluator : IEvaluator
         private IVal IsFailed(params IVal[] values) => IsFailed() ? BoolT.True : BoolT.False;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsFailed() => analysisContext.IsFailed || analysisContext.Steps.Any(static x => x.IsFailed);
+        private bool IsFailed()
+        {
+            if (AnalysisContext is not {} analysisContext)
+            {
+                throw new InvalidOperationException($"{nameof(AnalysisContext)} is unset");
+            }
+
+            return analysisContext.IsFailed || analysisContext.Steps.Any(static x => x.IsFailed);
+        }
     }
 
     [JsonObject(NamingStrategyType = typeof(CamelCaseNamingStrategy))]
