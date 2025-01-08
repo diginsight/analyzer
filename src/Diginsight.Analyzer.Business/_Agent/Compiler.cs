@@ -12,6 +12,7 @@ using Newtonsoft.Json.Serialization;
 using NodaTime;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Runtime.CompilerServices;
 using Duration = Google.Protobuf.WellKnownTypes.Duration;
 
@@ -23,10 +24,18 @@ internal sealed class Compiler : ICompiler
 
     public IStepCondition CompileCondition(StepMeta stepMeta)
     {
-        ScriptHost scriptHost = ScriptHost.NewBuilder().Registry(JsonRegistry.NewRegistry()).Build();
-        Script script = scriptHost.BuildScript(stepMeta.Condition ?? $"{ConditionLibrary.IsSucceededFunctionName}()")
-            .WithLibraries(library)
-            .Build();
+        Script script;
+        try
+        {
+            ScriptHost scriptHost = ScriptHost.NewBuilder().Registry(JsonRegistry.NewRegistry()).Build();
+            script = scriptHost.BuildScript(stepMeta.Condition ?? $"{ConditionLibrary.IsSucceededFunctionName}()")
+                .WithLibraries(library)
+                .Build();
+        }
+        catch (ScriptCreateException exception)
+        {
+            throw new AnalysisException($"Bad condition for step '{stepMeta.InternalName}'", HttpStatusCode.BadRequest, "BadCondition", exception);
+        }
 
         return new StepCondition(script, library);
     }
