@@ -30,38 +30,32 @@ internal static partial class Program
 
     private static async Task Main(string[] args)
     {
-        static ILoggerFactory MakeEmergencyLoggerFactory()
-        {
-            bool isLocal = string.Equals(
-                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), Environments.Development, StringComparison.OrdinalIgnoreCase
-            );
-
-            return DeferredLoggerFactory.MakeDefaultEmergencyLoggerFactory(
-                //lfo => { },
-                configureFormatterOptions: dcfo =>
-                {
-                    dcfo.TotalWidth = isLocal ? -1 : 0;
-                    dcfo.UseColor = isLocal;
-                }
-            );
-        }
-
         AppContext.SetSwitch("Azure.Experimental.EnableActivitySource", true);
 
-        using IDeferredLoggerFactory deferredLoggerFactory = new DeferredLoggerFactory(
-            activitiesOptions: new DiginsightActivitiesOptions() { LogActivities = true },
-            makeEmergencyLoggerFactory: MakeEmergencyLoggerFactory
+        using EarlyLoggingManager earlyLoggingManager = new (
+            static source => source.Name.StartsWith("Diginsight.Analyzer.", StringComparison.Ordinal)
         );
 
-        deferredLoggerFactory.ActivitySourceFilter = static source => source.Name.StartsWith("Diginsight.Analyzer.", StringComparison.Ordinal);
-
-        ILogger logger = deferredLoggerFactory.CreateLogger(typeof(Program));
+        ILogger logger = earlyLoggingManager.LoggerFactory.CreateLogger(typeof(Program));
 
         WebApplicationBuilder appBuilder = WebApplication.CreateBuilder(args);
 
         IWebHostEnvironment environment = appBuilder.Environment;
         IConfiguration configuration = appBuilder.Configuration;
         IServiceCollection services = appBuilder.Services;
+
+        services.Configure<DiginsightConsoleFormatterOptions>(configuration.GetSection("Diginsight:Console"));
+        services.AddLogging(
+            static loggingBuilder =>
+            {
+                loggingBuilder.ClearProviders();
+                loggingBuilder.AddDiginsightConsole();
+            }
+        );
+
+        // TODO OpenTelemetry
+
+        earlyLoggingManager.AttachTo(services);
 
         appBuilder.Host.UseDiginsightServiceProvider();
 
@@ -93,23 +87,11 @@ internal static partial class Program
 
         LogMessages.ProgramInfos(logger, isAgent);
 
-        services.Configure<DiginsightConsoleFormatterOptions>(configuration.GetSection("Diginsight:Console"));
-        services.AddLogging(
-            static loggingBuilder =>
-            {
-                loggingBuilder.ClearProviders();
-                loggingBuilder.AddDiginsightConsole();
-            }
-        );
-
-        // TODO OpenTelemetry
-
         services.TryAddSingleton(TimeProvider.System);
 
         services.AddHttpClient(typeof(AnalysisController).FullName!);
 
         services
-            .FlushOnCreateServiceProvider(deferredLoggerFactory)
             .AddRepositories(configuration, credential)
             .AddBusiness(configuration);
 
@@ -160,39 +142,6 @@ internal static partial class Program
 
         // ReSharper disable once AsyncApostle.AsyncAwaitMayBeElidedHighlighting
         await app.RunAsync();
-    }
-
-    private class LogBodiesOnFailureHandler : DelegatingHandler
-    {
-        private readonly ILogger logger;
-
-        public LogBodiesOnFailureHandler(ILogger logger)
-        {
-            this.logger = logger;
-        }
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            HttpResponseMessage response = await base.SendAsync(request, cancellationToken);
-
-            int statusCode = (int)response.StatusCode;
-            if (statusCode >= 400 && (request.Method != HttpMethod.Get || statusCode != StatusCodes.Status404NotFound))
-            {
-                logger.Log(
-                    LogLevel.Trace,
-                    200,
-                    """
-                    Downstream failure.
-                    Request body: {RequestBody}
-                    Response body: {ResponseBody}
-                    """,
-                    request.Content is { } requestContent ? Convert.ToBase64String(await requestContent.ReadAsByteArrayAsync(CancellationToken.None)) : null,
-                    response.Content is { } responseContent ? Convert.ToBase64String(await responseContent.ReadAsByteArrayAsync(CancellationToken.None)) : null
-                );
-            }
-
-            return response;
-        }
     }
 
     private static partial class LogMessages

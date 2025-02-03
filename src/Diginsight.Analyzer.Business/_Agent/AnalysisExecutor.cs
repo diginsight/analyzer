@@ -1,11 +1,11 @@
 ﻿using Diginsight.Analyzer.Business.Configurations;
-using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Entities.Events;
 using Diginsight.Analyzer.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using System.Threading.RateLimiting;
 
 namespace Diginsight.Analyzer.Business;
 
@@ -138,7 +138,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         }
     }
 
-    private Task ExecuteMainAsync(
+    private async Task ExecuteMainAsync(
         IEnumerable<IAnalyzerStepExecutor> stepExecutors,
         IEnumerable<IEventSender> eventSenders,
         IAnalysisContext analysisContext,
@@ -146,17 +146,23 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         CancellationToken cancellationToken
     )
     {
-        TaskScheduler taskScheduler = new LimitedConcurrencyTaskScheduler(parallelism);
-        TaskFactory taskFactory = new (taskScheduler);
+        await using RateLimiter rateLimiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions() { PermitLimit = parallelism, QueueLimit = int.MaxValue });
+
         TaskCompletionSource tcs = new ();
 
         Lock @lock = new ();
         IList<IAnalyzerStepExecutor> missingStepExecutors = new List<IAnalyzerStepExecutor>(stepExecutors);
         ISet<string> completedStepNames = new HashSet<string>();
 
+        CancellationTokenSource localCts = new ();
+        CancellationToken localCt = CancellationTokenSource
+            .CreateLinkedTokenSource(cancellationToken, localCts.Token)
+            .Token;
+
         Enqueue();
 
-        return tcs.Task;
+        await tcs.Task;
+        await localCts.CancelAsync().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 
         void Enqueue()
         {
@@ -191,59 +197,64 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                         continue;
                 }
 
-                _ = taskFactory
-                    .StartNew(
-                        async () =>
+                TaskUtils.RunAndForget(
+                    async () =>
+                    {
+                        using RateLimitLease lease = await rateLimiter.AcquireAsync(cancellationToken: localCt);
+                        if (!lease.IsAcquired)
                         {
-                            (_, string internalName) = stepMeta;
+                            tcs.TrySetException(new InvalidOperationException("Could not acquire lease from rate limiter"));
+                            return;
+                        }
 
-                            try
+                        (_, string internalName) = stepMeta;
+
+                        try
+                        {
+                            LogMessages.RunningAnalyzerStep(logger, internalName);
+
+                            await WithStepHistoryAsync(
+                                ExecuteIfEnabledAsync,
+                                analysisContext,
+                                stepExecutor,
+                                eventSenders,
+                                localCt
+                            );
+
+                            lock (@lock)
                             {
-                                LogMessages.RunningAnalyzerStep(logger, internalName);
+                                completedStepNames.Add(stepMeta.InternalName);
+                            }
 
-                                await WithStepHistoryAsync(
-                                    ExecuteIfEnabledAsync,
-                                    analysisContext,
-                                    stepExecutor,
-                                    eventSenders,
-                                    cancellationToken
-                                );
+                            Enqueue();
 
-                                lock (@lock)
+                            async Task ExecuteIfEnabledAsync(CancellationToken ct)
+                            {
+                                StepHistory stepHistory = analysisContext.GetStep(internalName);
+                                if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
                                 {
-                                    completedStepNames.Add(stepMeta.InternalName);
+                                    return;
                                 }
 
-                                Enqueue();
-
-                                async Task ExecuteIfEnabledAsync(CancellationToken ct)
+                                if (enabled)
                                 {
-                                    StepHistory stepHistory = analysisContext.GetStep(internalName);
-                                    if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
-                                    {
-                                        return;
-                                    }
-
-                                    if (enabled)
-                                    {
-                                        await stepExecutor.ExecuteAsync(analysisContext, ct);
-                                    }
-                                    else
-                                    {
-                                        stepHistory.Skip("Condition");
-                                    }
+                                    await stepExecutor.ExecuteAsync(analysisContext, ct);
+                                }
+                                else
+                                {
+                                    stepHistory.Skip("Condition");
                                 }
                             }
-                            catch (OperationCanceledException exception) when (exception.CancellationToken == cancellationToken) { }
-                            catch (Exception exception)
-                            {
-                                LogMessages.ErrorRunningAnalyzerStep(logger, internalName, exception);
-                                tcs.TrySetException(exception);
-                            }
-                        },
-                        TaskCreationOptions.RunContinuationsAsynchronously
-                    )
-                    .Unwrap();
+                        }
+                        catch (OperationCanceledException exception) when (exception.CancellationToken == localCt) { }
+                        catch (Exception exception)
+                        {
+                            LogMessages.ErrorRunningAnalyzerStep(logger, internalName, exception);
+                            tcs.TrySetException(exception);
+                        }
+                    },
+                    localCt
+                );
             }
         }
     }

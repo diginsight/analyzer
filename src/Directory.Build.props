@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <DiginsightCoreVersion>3.2.*</DiginsightCoreVersion>
+    <DiginsightCoreVersion>3.4.0-alpha.4</DiginsightCoreVersion>
   </PropertyGroup>
 
 </Project>

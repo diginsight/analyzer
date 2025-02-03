@@ -10,6 +10,7 @@
     <PackageReference Include="StringTokenFormatter" Version="9.*" />
     <!-- HACK Explicitly added to suppress NU1904 warning -->
     <PackageReference Include="System.Drawing.Common" Version="4.*" PrivateAssets="all" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="9.*" />
     <PackageReference Include="Ulid" Version="1.*" />
   </ItemGroup>
 
