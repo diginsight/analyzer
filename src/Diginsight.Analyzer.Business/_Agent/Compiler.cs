@@ -167,7 +167,7 @@ internal sealed class Compiler : ICompiler
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsFailed()
         {
-            if (AnalysisContext is not {} analysisContext)
+            if (AnalysisContext is not { } analysisContext)
             {
                 throw new InvalidOperationException($"{nameof(AnalysisContext)} is unset");
             }

@@ -8,11 +8,7 @@ public class Skippable : ISkippable
     public bool IsSkipped => Reason is not null;
 
     [DisallowNull]
-    public Exception? Reason
-    {
-        get;
-        private set;
-    }
+    public Exception? Reason { get; private set; }
 
     public Skippable() { }
 

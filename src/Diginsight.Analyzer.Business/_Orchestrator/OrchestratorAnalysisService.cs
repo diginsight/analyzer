@@ -301,10 +301,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
             await Parallel.ForEachAsync(
                 inputPayloads,
                 new ParallelOptions() { CancellationToken = cancellationToken, MaxDegreeOfParallelism = parallelism },
-                async (inputPayload, _) =>
-                {
-                    await fileRepository.WriteQueuedInputPayloadAsync(inputPayload, executionId, inputPayload.Label, cancellationToken);
-                }
+                async (inputPayload, _) => { await fileRepository.WriteQueuedInputPayloadAsync(inputPayload, executionId, inputPayload.Label, cancellationToken); }
             );
         }
         catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)

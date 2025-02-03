@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Http.Extensions;
+﻿using Diginsight.Analyzer.Repositories.Models;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace Diginsight.Analyzer.API.Models;
 
 internal sealed record PayloadLink(string Label, bool IsOutput, Uri Uri)
 {
-    public static PayloadLink From(Repositories.Models.PayloadDescriptor descriptor, HttpRequest request)
+    public static PayloadLink From(PayloadDescriptor descriptor, HttpRequest request)
     {
         string label = descriptor.Label;
         return new PayloadLink(

@@ -57,7 +57,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
         DateTime startedAt = analysisContext.StartedAt;
         IEnumerable<EventRecipient> eventRecipients = globalMeta.EventRecipients ?? [ ];
-        ExecutionCoord executionCoord = new(ExecutionKind.Analysis, executionId);
+        ExecutionCoord executionCoord = new (ExecutionKind.Analysis, executionId);
 
         await infoRepository.InsertAsync(analysisContext);
         await eventService.EmitAsync(

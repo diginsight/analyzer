@@ -259,16 +259,18 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
             (sp, disposables) =>
             {
                 IEnumerable<IAnalyzerStepExecutor> stepExecutors = stepExecutorProtos
-                    .Select(x =>
-                    {
-                        IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.Input, x.Condition);
-                        // ReSharper disable once SuspiciousTypeConversion.Global
-                        if (stepExecutor is IDisposable disposable)
+                    .Select(
+                        x =>
                         {
-                            disposables.Add(disposable);
+                            IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.Input, x.Condition);
+                            // ReSharper disable once SuspiciousTypeConversion.Global
+                            if (stepExecutor is IDisposable disposable)
+                            {
+                                disposables.Add(disposable);
+                            }
+                            return stepExecutor;
                         }
-                        return stepExecutor;
-                    })
+                    )
                     .ToArray();
 
                 IEnumerable<IEventSender> eventSenders = pluginService.CreateEventSenders(sp);
