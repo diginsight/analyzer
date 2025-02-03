@@ -4,12 +4,16 @@ using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using System.Net;
 
 namespace Diginsight.Analyzer.API.Controllers;
 
 [Flavor(Flavor.AgentOnly)]
 public class AgentAnalysisController : AnalysisController
 {
+    public static readonly AnalysisException IdleException =
+        new ("Agent is idle", HttpStatusCode.Conflict, "Idle");
+
     private readonly IAgentAnalysisService analysisService;
 
     public AgentAnalysisController(
@@ -44,7 +48,7 @@ public class AgentAnalysisController : AnalysisController
     [HttpGet("execution")]
     public async Task<IActionResult> GetExecution()
     {
-        return await analysisService.GetCurrentAsync(HttpContext.RequestAborted) is { } coord ? Ok(coord) : throw AnalysisExceptions.Idle;
+        return await analysisService.GetCurrentAsync(HttpContext.RequestAborted) is { } coord ? Ok(coord) : throw IdleException;
     }
 
     [HttpDelete("execution")]

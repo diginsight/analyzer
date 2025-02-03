@@ -1,8 +1,7 @@
-﻿using Diginsight.Analyzer.Entities;
+﻿using Diginsight.Analyzer.Business.Models;
+using Diginsight.Analyzer.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Newtonsoft.Json;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Diginsight.Analyzer.API.Mvc;
 
@@ -32,30 +31,12 @@ internal sealed partial class GlobalExceptionFilter : IExceptionFilter
             _ => StatusCodes.Status500InternalServerError,
         };
 
-        exceptionContext.Result = new JsonResult((ExceptionView)exception) { StatusCode = statusCode };
+        exceptionContext.Result = new JsonResult(ExceptionView.From(exception)) { StatusCode = statusCode };
     }
 
     private static partial class LogMessages
     {
         [LoggerMessage(0, LogLevel.Error, "Unexpected error during request")]
         internal static partial void UnexpectedErrorDuringRequest(ILogger logger, Exception exception);
-    }
-
-    [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore)]
-    private sealed record ExceptionView(
-        string Message,
-        ExceptionView? InnerException,
-        string? Label,
-        object?[]? Parameters
-    )
-    {
-        [return: NotNullIfNotNull("e")]
-        public static explicit operator ExceptionView?(Exception? e) => e switch
-        {
-            null => null,
-            AnalysisException (var message, var innerException, var label, var parameters) =>
-                new ExceptionView(message, (ExceptionView?)innerException, label, parameters),
-            _ => new ExceptionView(e.Message, (ExceptionView?)e.InnerException, null, null),
-        };
     }
 }

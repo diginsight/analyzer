@@ -168,16 +168,14 @@ public abstract class AnalysisController : ControllerBase
     private static readonly AnalysisException MalformedDependsOnException =
         new ("Malformed `dependsOn` in step definition", HttpStatusCode.BadRequest, "MalformedDependsOn");
 
-    private static AnalysisException MissingFormFileException(string name) =>
-        new ($"Missing `{name}` form file", HttpStatusCode.UnsupportedMediaType, "MissingFormFile");
-
-    private static AnalysisException UnsupportedFormFileException(string? name) =>
-        new (
-            name is null ? "Unsupported content type" : "Unsupported content type for form file {0}",
-            HttpStatusCode.UnsupportedMediaType,
-            "UnsupportedFormFile",
-            name is null ? [ ] : [ name ]
-        );
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static AnalysisException UnsupportedFormFileException(string? name)
+    {
+        (string messageFormat, IReadOnlyList<object?> parameters) = name is null
+            ? ("Unsupported content type", Array.Empty<object?>())
+            : ("Unsupported content type for form file {0}", [ name ]);
+        return new AnalysisException(messageFormat, parameters, HttpStatusCode.UnsupportedMediaType, "UnsupportedFormFile");
+    }
 
     private static readonly IDeserializer YamlDeserializer = new Deserializer();
     private static readonly ISerializer JsonYamlSerializer = new SerializerBuilder().JsonCompatible().Build();
@@ -213,7 +211,9 @@ public abstract class AnalysisController : ControllerBase
     {
         if (ffs[DefinitionFormName] is not { } ff)
         {
-            throw MissingFormFileException(DefinitionFormName);
+            // ReSharper disable once ConvertToConstant.Local InlineTemporaryVariable
+            string ffName = DefinitionFormName;
+            throw new AnalysisException($"Missing `{ffName}` form file", HttpStatusCode.UnsupportedMediaType, "MissingFormFile");
         }
 
         (string? rawContentType, _, Func<CancellationToken, ValueTask<Stream>> openPayloadStreamAsync) =
@@ -229,12 +229,9 @@ public abstract class AnalysisController : ControllerBase
         (string? rawContentType, _, Func<CancellationToken, ValueTask<Stream>> openPayloadStreamAsync) =
             await FollowLocationAsync(null, true, cancellationToken);
 
-        if (rawContentType is null)
-        {
-            return null;
-        }
-
-        return await ParseGlobalDefinitionAsync<GlobalDefinition>(null, rawContentType, openPayloadStreamAsync, disposables, cancellationToken);
+        return rawContentType is not null
+            ? await ParseGlobalDefinitionAsync<GlobalDefinition>(null, rawContentType, openPayloadStreamAsync, disposables, cancellationToken)
+            : null;
     }
 
     private async Task<(TGlobalDefinition Result, EncodedStream Stream)> ParseGlobalDefinitionAsync<TGlobalDefinition>(

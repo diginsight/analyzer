@@ -13,37 +13,21 @@ public sealed class AnalysisException : ApplicationException
 
     public string Label { get; }
 
-    public object?[] Parameters { get; }
+    public IReadOnlyList<object?> Parameters { get; }
 
-    public AnalysisException(string message, HttpStatusCode statusCode, string label)
-        : this(message, statusCode, label, (Exception?)null) { }
-
-    public AnalysisException(string message, HttpStatusCode statusCode, string label, Exception? innerException)
+    public AnalysisException(string message, HttpStatusCode statusCode, string label, Exception? innerException = null)
         : this(message, innerException, statusCode, label, [ ]) { }
 
-    public AnalysisException(
-        ref InterpolatedStringHandler handler,
-        HttpStatusCode statusCode,
-        string label
-    )
-        : this(ref handler, statusCode, label, null) { }
+    public AnalysisException(ref InterpolatedStringHandler handler, HttpStatusCode statusCode, string label, Exception? innerException = null)
+        : this(handler.ToString(), innerException, statusCode, label, handler.Parameters) { }
 
     public AnalysisException(
-        ref InterpolatedStringHandler handler,
-        HttpStatusCode statusCode,
-        string label,
-        Exception? innerException
+        string messageFormat, IReadOnlyList<object?> parameters, HttpStatusCode statusCode, string label, Exception? innerException = null
     )
-        : this(handler.ToString(), innerException, statusCode, label, handler.Parameters.ToArray()) { }
-
-    public AnalysisException(string messageFormat, HttpStatusCode statusCode, string label, object?[] parameters)
-        : this(messageFormat, statusCode, label, null, parameters) { }
-
-    public AnalysisException(string messageFormat, HttpStatusCode statusCode, string label, Exception? innerException, object?[] parameters)
-        : this(string.Format(messageFormat, parameters), innerException, statusCode, label, parameters) { }
+        : this(string.Format(messageFormat, parameters as object?[] ?? parameters.ToArray()), innerException, statusCode, label, parameters) { }
 
     [JsonConstructor]
-    private AnalysisException(string message, Exception? innerException, HttpStatusCode statusCode, string label, object?[] parameters)
+    private AnalysisException(string message, Exception? innerException, HttpStatusCode statusCode, string label, IReadOnlyList<object?> parameters)
         : base(message, innerException)
     {
         StatusCode = statusCode;
@@ -55,7 +39,7 @@ public sealed class AnalysisException : ApplicationException
     public readonly ref struct InterpolatedStringHandler
     {
         private readonly StringBuilder sb;
-        private readonly ICollection<object?> parameters;
+        private readonly IList<object?> parameters;
 
         public InterpolatedStringHandler(int literalLength, int formattedCount)
         {
@@ -63,7 +47,7 @@ public sealed class AnalysisException : ApplicationException
             parameters = new List<object?>(formattedCount);
         }
 
-        public IEnumerable<object?> Parameters => parameters;
+        public IReadOnlyList<object?> Parameters => parameters.ToArray();
 
         public void AppendLiteral(string str)
         {
@@ -87,7 +71,7 @@ public sealed class AnalysisException : ApplicationException
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public void Deconstruct(out string message, out Exception? innerException, out string label, out object?[] parameters)
+    public void Deconstruct(out string message, out Exception? innerException, out string label, out IReadOnlyList<object?> parameters)
     {
         message = Message;
         innerException = InnerException;

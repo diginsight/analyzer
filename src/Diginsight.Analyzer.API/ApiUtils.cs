@@ -13,22 +13,6 @@ namespace Diginsight.Analyzer.API;
 
 internal static class ApiUtils
 {
-    private static AnalysisException MalformedContentLocationException(string? name) =>
-        new (
-            name is null ? "Malformed content location" : "Malformed content location for form file {0}",
-            HttpStatusCode.BadRequest,
-            "MalformedContentLocation",
-            name is null ? [ ] : [ name ]
-        );
-
-    private static AnalysisException CannotFollowContentLocationException(HttpStatusCode statusCode, string? name) =>
-        new (
-            name is null ? "Cannot follow content location due to {0} status code" : "Cannot follow content location for form file {1} due to {0} status code",
-            HttpStatusCode.BadGateway,
-            "CannotFollowContentLocation",
-            name is null ? [ statusCode ] : [ statusCode, name ]
-        );
-
     public static async Task<PayloadHolder> FollowLocationAsync(
         HttpClient httpClient, HttpRequest request, IFormFile? ff, bool skipFileName, CancellationToken cancellationToken
     )
@@ -60,7 +44,10 @@ internal static class ApiUtils
         string? ffName = ff?.Name;
         if (!Uri.TryCreate(rawContentLocation, UriKind.Absolute, out Uri? contentLocation))
         {
-            throw MalformedContentLocationException(ffName);
+            (string messageFormat, IReadOnlyList<object?> parameters) = ffName is null
+                ? ("Malformed content location", Array.Empty<object?>())
+                : ("Malformed content location for form file {0}", [ ffName ]);
+            throw new AnalysisException(messageFormat, parameters, HttpStatusCode.BadRequest, "MalformedContentLocation");
         }
 
         return await FollowLocationAsync(
@@ -84,7 +71,13 @@ internal static class ApiUtils
             if (!response.IsSuccessStatusCode)
             {
                 response.Dispose();
-                throw CannotFollowContentLocationException(response.StatusCode, ffName);
+
+                HttpStatusCode statusCode = response.StatusCode;
+                (string messageFormat, IReadOnlyList<object?> parameters) = ffName is null
+                    ? ("Cannot follow content location due to {0} status code", new object?[] { statusCode })
+                    : ("Cannot follow content location for form file '{1}' due to {0} status code", [ statusCode, ffName ]);
+
+                throw new AnalysisException(messageFormat, parameters, HttpStatusCode.BadGateway, "CannotFollowContentLocation");
             }
 
             HttpContentHeaders headers = response.Content.Headers;

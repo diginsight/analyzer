@@ -6,12 +6,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
+using System.Net;
 using System.Runtime.CompilerServices;
 
 namespace Diginsight.Analyzer.Business;
 
 internal sealed partial class AgentAnalysisService : IAgentAnalysisService
 {
+    public static readonly AnalysisException NotPendingException =
+        new ("Execution is not pending", HttpStatusCode.Conflict, "NotPending");
+
     private readonly ILogger logger;
     private readonly IAgentExecutionService executionService;
     private readonly IInternalAnalysisService internalAnalysisService;
@@ -104,7 +108,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
 
         if (snapshot.StartedAt is not null)
         {
-            throw AnalysisExceptions.NotPending;
+            throw NotPendingException;
         }
 
         GlobalMeta globalMeta = snapshot.GlobalMeta;

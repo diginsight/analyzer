@@ -131,14 +131,22 @@ internal sealed class AgentClient : IAgentClient
 
             if (exceptionView is null)
             {
-                throw AnalysisExceptions.DownstreamException($"Received {statusCode} invoking agent");
+                throw AnalysisExceptions.DownstreamException($"Received status code {statusCode} invoking agent");
             }
 
             string message = exceptionView.Message;
-            throw AnalysisExceptions.DownstreamException(
-                $"Received {statusCode} invoking agent: {message}",
-                exceptionView.Label is { } label ? new AnalysisException(message, statusCode, label, exceptionView.Parameters!) : null
-            );
+            if (exceptionView.Label is { } label)
+            {
+                throw AnalysisExceptions.DownstreamException(
+                    "Received status code {0} and label {2} invoking agent: {1}",
+                    [ statusCode, message, label ],
+                    new AnalysisException(message, exceptionView.Parameters, statusCode, label)
+                );
+            }
+            else
+            {
+                throw AnalysisExceptions.DownstreamException($"Received status code {statusCode} invoking agent: {message}");
+            }
         }
         catch (TaskCanceledException exception) when (exception.InnerException is TimeoutException timeoutException)
         {
@@ -146,7 +154,4 @@ internal sealed class AgentClient : IAgentClient
             throw timeoutException;
         }
     }
-
-    [JsonObject(MissingMemberHandling = MissingMemberHandling.Error)]
-    private sealed record ExceptionView(string Message, ExceptionView? InnerException, string? Label, object?[]? Parameters);
 }

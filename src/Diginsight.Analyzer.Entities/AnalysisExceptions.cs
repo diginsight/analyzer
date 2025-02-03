@@ -4,14 +4,8 @@ namespace Diginsight.Analyzer.Entities;
 
 public static class AnalysisExceptions
 {
-    public static readonly AnalysisException NotPending =
-        new ("Execution is not pending", HttpStatusCode.Conflict, nameof(NotPending));
-
     public static readonly AnalysisException AlreadyPendingOrRunning =
         new ("Analysis is already pending or running", HttpStatusCode.Conflict, nameof(AlreadyPendingOrRunning));
-
-    public static readonly AnalysisException Idle =
-        new ("Agent is idle", HttpStatusCode.Conflict, nameof(Idle));
 
     public static readonly AnalysisException NoSuchExecution =
         new ("No such execution", HttpStatusCode.NotFound, nameof(NoSuchExecution));
@@ -27,6 +21,9 @@ public static class AnalysisExceptions
 
     public static AnalysisException DownstreamException(string message, AnalysisException? innerException = null) =>
         new (message, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
+
+    public static AnalysisException DownstreamException(string messageFormat, IReadOnlyList<object?> parameters, AnalysisException? innerException = null) =>
+        new (messageFormat, parameters, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
 
     public static AnalysisException DownstreamException(ref AnalysisException.InterpolatedStringHandler handler, AnalysisException? innerException = null) =>
         new (ref handler, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
