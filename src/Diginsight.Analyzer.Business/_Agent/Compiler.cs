@@ -5,7 +5,6 @@ using Cel.Common.Types.Json;
 using Cel.Common.Types.Ref;
 using Cel.Interpreter.Functions;
 using Cel.Tools;
-using Diginsight.Json;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
@@ -20,6 +19,13 @@ namespace Diginsight.Analyzer.Business;
 
 internal sealed class Compiler : ICompiler
 {
+    private static readonly TypeAdapter ObjectToVal = static obj => obj switch
+    {
+        IVal val => val,
+        JToken jtoken => JTokenToVal(jtoken),
+        _ => throw new UnreachableException($"Unexpected {obj?.GetType().Name ?? "null"}"),
+    };
+
     private readonly ConditionLibrary library = new ();
 
     public IStepCondition CompileCondition(StepMeta stepMeta)
@@ -58,7 +64,7 @@ internal sealed class Compiler : ICompiler
             IDictionary<string, object> arguments = new Dictionary<string, object>()
             {
                 [ConditionLibrary.ContextVarName] = new AnalysisContextView(analysisContext),
-                [ConditionLibrary.ProgressVarName] = analysisContext.Progress.Accept(JsonToValVisitor.Instance, default),
+                [ConditionLibrary.ProgressVarName] = JTokenToVal(analysisContext.Progress),
                 [ConditionLibrary.StepVarName] = new StepHistoryView(stepHistory),
             };
 
@@ -76,49 +82,33 @@ internal sealed class Compiler : ICompiler
         }
     }
 
-    private sealed class JsonToValVisitor : IJTokenVisitor<IVal, ValueTuple>
+    private static IVal JTokenToVal(JToken jtoken) => jtoken.Type switch
     {
-        public static readonly JsonToValVisitor Instance = new ();
+        JTokenType.Object => MapT.NewWrappedMap(
+            ObjectToVal,
+            ((IDictionary<string, JToken?>)(JObject)jtoken).ToDictionary(static IVal (x) => StringT.StringOf(x.Key), static x => JTokenToVal(x.Value!))
+        ),
 
-        private readonly TypeAdapter adapter;
+        JTokenType.Array => ListT.NewGenericArrayList(ObjectToVal, ((JArray)jtoken).Select(JTokenToVal).ToArray()),
 
-        private JsonToValVisitor()
-        {
-            adapter = obj => ((JToken)obj!).Accept(this, default);
-        }
+        JTokenType.Integer => IntT.IntOf(jtoken.ToObject<long>()),
+        JTokenType.Float => DoubleT.DoubleOf(jtoken.ToObject<double>()),
+        JTokenType.Boolean => jtoken.ToObject<bool>() ? BoolT.True : BoolT.False,
+        JTokenType.Null => NullT.NullValue,
+        JTokenType.Date => TimestampT.TimestampOf(Instant.FromDateTimeOffset(jtoken.ToObject<DateTimeOffset>())),
+        JTokenType.Bytes => jtoken.ToObject<byte[]>() is { } bytes ? BytesT.BytesOf(bytes) : NullT.NullValue,
+        JTokenType.String or JTokenType.Guid or JTokenType.Uri => jtoken.ToObject<string>() is { } str ? StringT.StringOf(str) : NullT.NullValue,
+        JTokenType.TimeSpan => DurationT.DurationOf(Duration.FromTimeSpan(jtoken.ToObject<TimeSpan>())),
 
-        public IVal Visit(JArray jarray, ValueTuple arg) => ListT.NewGenericArrayList(adapter, jarray.AsEnumerable().ToArray());
+        JTokenType.None
+            or JTokenType.Undefined
+            or JTokenType.Constructor
+            or JTokenType.Property
+            or JTokenType.Comment
+            or JTokenType.Raw => throw new NotSupportedException($"Unsupported {nameof(JTokenType)}"),
 
-        public IVal Visit(JConstructor jconstructor, ValueTuple arg) => throw new NotSupportedException();
-
-        public IVal Visit(JObject jobject, ValueTuple arg) => MapT.NewWrappedMap(
-            adapter,
-            ((IDictionary<string, JToken?>)jobject).ToDictionary(static IVal (x) => StringT.StringOf(x.Key), x => x.Value!.Accept(this, arg))
-        );
-
-        public IVal Visit(JProperty jproperty, ValueTuple arg) => throw new NotSupportedException();
-
-        public IVal Visit(JValue jvalue, ValueTuple arg) => jvalue.Type switch
-        {
-            JTokenType.None
-                or JTokenType.Object
-                or JTokenType.Array
-                or JTokenType.Constructor
-                or JTokenType.Property
-                or JTokenType.Comment
-                or JTokenType.Raw => throw new UnreachableException($"Unexpected {nameof(JTokenType)}"),
-            JTokenType.Undefined => throw new NotSupportedException($"Unsupported {nameof(JTokenType)}"),
-            JTokenType.Integer => IntT.IntOf(jvalue.ToObject<long>()),
-            JTokenType.Float => DoubleT.DoubleOf(jvalue.ToObject<double>()),
-            JTokenType.Boolean => jvalue.ToObject<bool>() ? BoolT.True : BoolT.False,
-            JTokenType.Null => NullT.NullValue,
-            JTokenType.Date => TimestampT.TimestampOf(Instant.FromDateTimeOffset(jvalue.ToObject<DateTimeOffset>())),
-            JTokenType.Bytes => jvalue.ToObject<byte[]>() is { } bytes ? BytesT.BytesOf(bytes) : NullT.NullValue,
-            JTokenType.String or JTokenType.Guid or JTokenType.Uri => jvalue.ToObject<string>() is { } str ? StringT.StringOf(str) : NullT.NullValue,
-            JTokenType.TimeSpan => DurationT.DurationOf(Duration.FromTimeSpan(jvalue.ToObject<TimeSpan>())),
-            _ => throw new UnreachableException($"Unrecognized {nameof(JTokenType)}"),
-        };
-    }
+        _ => throw new UnreachableException($"Unrecognized {nameof(JTokenType)}"),
+    };
 
     private sealed class ConditionLibrary : ILibrary
     {
