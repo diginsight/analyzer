@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 
 namespace Diginsight.Analyzer.Steps;
 
@@ -25,14 +24,14 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
         makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
     }
 
-    public Task ValidateAsync(StrongBox<JObject> stepInputBox, CancellationToken cancellationToken)
+    public Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
     {
         string internalName = Meta.InternalName;
 
         CopyProgressStepInput input;
         try
         {
-            input = stepInputBox.Value!.ToObject<CopyProgressStepInput>()!;
+            input = stepInput.Count > 0 ? stepInput.ToObject<CopyProgressStepInput>()! : throw AnalysisExceptions.MissingInput(internalName);
         }
         catch (JsonException exception)
         {
@@ -63,7 +62,7 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
                 );
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(stepInput);
     }
 
     public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)

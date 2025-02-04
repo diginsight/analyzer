@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json.Linq;
-using System.Runtime.CompilerServices;
 #if FEATURE_REPORTS
 using Diginsight.Analyzer.Business.Models;
 #endif
@@ -12,7 +11,7 @@ public interface IAnalyzerStep
 
     StepMeta Meta { get; }
 
-    Task ValidateAsync(StrongBox<JObject> stepInputBox, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken);
 
     Task<bool> HasConflictAsync(IEnumerable<StepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
 

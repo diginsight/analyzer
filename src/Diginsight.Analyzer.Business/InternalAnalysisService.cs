@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.Net;
-using System.Runtime.CompilerServices;
 
 namespace Diginsight.Analyzer.Business;
 
@@ -96,13 +95,12 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
             string internalName = analyzerStep.Meta.InternalName;
 
             LogMessages.ValidatingInput(logger, internalName);
-            StrongBox<JObject> stepInputBox = new (stepInput);
-            await analyzerStep.ValidateAsync(stepInputBox, cancellationToken);
+            JObject validatedStepInput = await analyzerStep.ValidateAsync(stepInput, cancellationToken);
 
             LogMessages.CompilingCondition(logger, internalName);
             IStepCondition condition = compiler.CompileCondition(analyzerStep.Meta);
 
-            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, stepInputBox.Value!, condition));
+            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, validatedStepInput, condition));
         }
 
         return stepExecutorProtos2;

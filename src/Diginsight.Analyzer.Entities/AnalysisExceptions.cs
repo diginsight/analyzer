@@ -34,6 +34,12 @@ public static class AnalysisExceptions
     public static AnalysisException AlreadyExecuting(ExecutionKind kind, Guid executionId) =>
         new ($"Already executing {kind:G} '{executionId:D}'", HttpStatusCode.Conflict, nameof(AlreadyExecuting));
 
+    public static AnalysisException UnexpectedInput(string internalName) =>
+        new ($"Unexpected input for step '{internalName}'", HttpStatusCode.BadRequest, nameof(UnexpectedInput));
+
+    public static AnalysisException MissingInput(string internalName) =>
+        new ($"Missing input for step '{internalName}'", HttpStatusCode.BadRequest, nameof(MissingInput));
+
     public static AnalysisException InvalidInput(string internalName, Exception? innerException = null) =>
         new ($"Invalid input for step '{internalName}'", HttpStatusCode.BadRequest, nameof(InvalidInput), innerException);
 }

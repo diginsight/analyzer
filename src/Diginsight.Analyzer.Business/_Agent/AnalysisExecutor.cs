@@ -76,6 +76,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         try
         {
             await WithTimeBoundAsync(CoreExecuteAsync, analysisContext, analysisContext, cancellationToken);
+            SetOverallStatus(analysisContext);
         }
         catch (Exception exception) when (exception is not OperationCanceledException oce || oce.CancellationToken != cancellationToken)
         {
@@ -138,6 +139,66 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         }
     }
 
+    private static void SetOverallStatus(IAnalysisContext analysisContext)
+    {
+        IDictionary<string, IEnumerable<IEnumerable<string>>> trailsByStep = new Dictionary<string, IEnumerable<IEnumerable<string>>>();
+
+        IEnumerable<IEnumerable<string>> GetTrails(string step)
+        {
+            if (trailsByStep.TryGetValue(step, out IEnumerable<IEnumerable<string>>? trails))
+            {
+                return trails;
+            }
+
+            IEnumerable<string> parentSteps = analysisContext.GetStep(step).Meta.DependsOn;
+            if (!parentSteps.Any())
+            {
+                return trailsByStep[step] = [ [ step ] ];
+            }
+
+            return trailsByStep[step] = parentSteps
+                .SelectMany(GetTrails)
+                .Select(ts => ts.Prepend(step).ToArray())
+                .ToArray();
+        }
+
+        IEnumerable<IEnumerable<string>> trails = analysisContext.Steps.Select(static x => x.Meta.InternalName)
+            .Except(analysisContext.Steps.SelectMany(static x => x.Meta.DependsOn))
+            .SelectMany(GetTrails);
+
+        foreach (IEnumerable<string> trail in trails)
+        foreach (string step in trail)
+        {
+            StepHistory stepHistory = analysisContext.GetStep(step);
+
+            if (stepHistory.IsSkipped)
+            {
+                continue;
+            }
+            if (stepHistory.IsFailed)
+            {
+                analysisContext.Fail("StepFailure");
+                return;
+            }
+
+            switch (stepHistory.Status)
+            {
+                case TimeBoundStatus.Pending:
+                case TimeBoundStatus.Running:
+                    throw new UnreachableException($"Unexpected {nameof(TimeBoundStatus)}");
+
+                case TimeBoundStatus.Completed:
+                case TimeBoundStatus.PartiallyCompleted:
+                case TimeBoundStatus.Aborting:
+                case TimeBoundStatus.Aborted:
+                    return;
+
+                default:
+                    throw new UnreachableException($"Unrecognized {nameof(TimeBoundStatus)}");
+            }
+        }
+    }
+
     private async Task ExecuteMainAsync(
         IEnumerable<IAnalyzerStepExecutor> stepExecutors,
         IEnumerable<IEventSender> eventSenders,
@@ -152,6 +213,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
         Lock @lock = new ();
         IList<IAnalyzerStepExecutor> missingStepExecutors = new List<IAnalyzerStepExecutor>(stepExecutors);
+        int totalStepCount = missingStepExecutors.Count;
         ISet<string> completedStepNames = new HashSet<string>();
 
         CancellationTokenSource localCts = new ();
@@ -161,8 +223,14 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
         Enqueue();
 
-        await tcs.Task;
-        await localCts.CancelAsync().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        try
+        {
+            await tcs.Task;
+        }
+        finally
+        {
+            await localCts.CancelAsync().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        }
 
         void Enqueue()
         {
@@ -172,16 +240,16 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                 return;
             }
 
-            IAnalyzerStepExecutor[] localStepExecutors;
+            IReadOnlyList<IAnalyzerStepExecutor> localStepExecutors;
             lock (@lock)
             {
-                localStepExecutors = missingStepExecutors.ToArray();
-            }
+                if (localCt.IsCancellationRequested || completedStepNames.Count == totalStepCount)
+                {
+                    tcs.TrySetResult();
+                    return;
+                }
 
-            if (!(localStepExecutors.Length > 0))
-            {
-                tcs.TrySetResult();
-                return;
+                localStepExecutors = missingStepExecutors.ToArray();
             }
 
             foreach (IAnalyzerStepExecutor stepExecutor in localStepExecutors)
@@ -200,57 +268,78 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                 TaskUtils.RunAndForget(
                     async () =>
                     {
-                        using RateLimitLease lease = await rateLimiter.AcquireAsync(cancellationToken: localCt);
-                        if (!lease.IsAcquired)
-                        {
-                            tcs.TrySetException(new InvalidOperationException("Could not acquire lease from rate limiter"));
-                            return;
-                        }
-
                         (_, string internalName) = stepMeta;
 
+                        RateLimitLease lease;
                         try
                         {
-                            LogMessages.RunningAnalyzerStep(logger, internalName);
-
-                            await WithStepHistoryAsync(
-                                ExecuteIfEnabledAsync,
-                                analysisContext,
-                                stepExecutor,
-                                eventSenders,
-                                localCt
-                            );
-
-                            lock (@lock)
-                            {
-                                completedStepNames.Add(stepMeta.InternalName);
-                            }
-
-                            Enqueue();
-
-                            async Task ExecuteIfEnabledAsync(CancellationToken ct)
-                            {
-                                StepHistory stepHistory = analysisContext.GetStep(internalName);
-                                if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
-                                {
-                                    return;
-                                }
-
-                                if (enabled)
-                                {
-                                    await stepExecutor.ExecuteAsync(analysisContext, ct);
-                                }
-                                else
-                                {
-                                    stepHistory.Skip("Condition");
-                                }
-                            }
+                            lease = await rateLimiter.AcquireAsync(cancellationToken: localCt);
                         }
-                        catch (OperationCanceledException exception) when (exception.CancellationToken == localCt) { }
+                        catch (OperationCanceledException exception) when (exception.CancellationToken == localCt)
+                        {
+                            tcs.TrySetCanceled(localCt);
+                            return;
+                        }
                         catch (Exception exception)
                         {
                             LogMessages.ErrorRunningAnalyzerStep(logger, internalName, exception);
                             tcs.TrySetException(exception);
+                            return;
+                        }
+
+                        using (lease)
+                        {
+                            if (!lease.IsAcquired)
+                            {
+                                tcs.TrySetException(new InvalidOperationException("Could not acquire lease from rate limiter"));
+                                return;
+                            }
+                            try
+                            {
+                                LogMessages.RunningAnalyzerStep(logger, internalName);
+
+                                await WithStepHistoryAsync(
+                                    ExecuteIfEnabledAsync,
+                                    analysisContext,
+                                    stepExecutor,
+                                    eventSenders,
+                                    localCt
+                                );
+
+                                lock (@lock)
+                                {
+                                    completedStepNames.Add(stepMeta.InternalName);
+                                }
+
+                                Enqueue();
+
+                                async Task ExecuteIfEnabledAsync(CancellationToken ct)
+                                {
+                                    StepHistory stepHistory = analysisContext.GetStep(internalName);
+                                    if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
+                                    {
+                                        return;
+                                    }
+
+                                    if (enabled)
+                                    {
+                                        await stepExecutor.ExecuteAsync(analysisContext, ct);
+                                    }
+                                    else
+                                    {
+                                        stepHistory.Skip("Condition");
+                                    }
+                                }
+                            }
+                            catch (OperationCanceledException exception) when (exception.CancellationToken == localCt)
+                            {
+                                tcs.TrySetCanceled(localCt);
+                            }
+                            catch (Exception exception)
+                            {
+                                LogMessages.ErrorRunningAnalyzerStep(logger, internalName, exception);
+                                tcs.TrySetException(exception);
+                            }
                         }
                     },
                     localCt

@@ -22,6 +22,11 @@ internal sealed class NoopAnalyzerStep : IAnalyzerStep
         makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
     }
 
+    public Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
+    {
+        return stepInput.Count > 0 ? throw AnalysisExceptions.UnexpectedInput(Meta.InternalName) : Task.FromResult(stepInput);
+    }
+
     public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
     {
         return makeExecutor(serviceProvider, input, condition);
