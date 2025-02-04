@@ -6,19 +6,19 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class DelayAnalyzerStepExecutor : IAnalyzerStepExecutor
 {
-    private readonly DelayAnalyzerStepInput.Final input;
+    private readonly DelayAnalyzerStepInput.Validated input;
 
     public StepMeta Meta { get; }
-    public JObject Input { get; }
+    public JObject RawInput { get; }
+    public object ValidatedInput => input;
     public IStepCondition Condition { get; }
 
-    public DelayAnalyzerStepExecutor(StepMeta meta, JObject input, IStepCondition condition)
+    public DelayAnalyzerStepExecutor(StepMeta meta, JObject rawInput, DelayAnalyzerStepInput.Validated validatedInput, IStepCondition condition)
     {
         Meta = meta;
-        Input = input;
+        RawInput = rawInput;
+        input = validatedInput;
         Condition = condition;
-
-        this.input = input.ToObject<DelayAnalyzerStepInput.Final>()!;
     }
 
     public Task ExecuteAsync(IAnalysisContext analysisContext, CancellationToken cancellationToken)

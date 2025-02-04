@@ -50,7 +50,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             executionId,
             coord,
             globalMeta,
-            stepExecutors.Select(static x => new StepInstance(x.Meta, x.Input)),
+            stepExecutors.Select(static x => new StepInstance(x.Meta, x.RawInput)),
             progress,
             queuedAt
         );

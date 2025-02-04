@@ -7,13 +7,14 @@ namespace Diginsight.Analyzer.Steps;
 internal sealed class NoopAnalyzerStepExecutor : IAnalyzerStepExecutor
 {
     public StepMeta Meta { get; }
-    public JObject Input { get; }
+    public JObject RawInput { get; }
+    public object ValidatedInput => NoopAnalyzerStep.ValidatedInput;
     public IStepCondition Condition { get; }
 
-    public NoopAnalyzerStepExecutor(StepMeta meta, JObject input, IStepCondition condition)
+    public NoopAnalyzerStepExecutor(StepMeta meta, JObject rawInput, IStepCondition condition)
     {
         Meta = meta;
-        Input = input;
+        RawInput = rawInput;
         Condition = condition;
     }
 

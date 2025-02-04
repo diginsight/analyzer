@@ -9,7 +9,7 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
 {
-    private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, JObject, CopyProgressStepInput, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -20,11 +20,11 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<CopyProgressAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<CopyProgressAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
-        makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
+            ActivatorUtilities.CreateFactory<CopyProgressAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(CopyProgressStepInput), typeof(IStepCondition) ]);
+        makeExecutor = (sp, rawInput, validatedInput, condition) => objectFactory(sp, [ meta, rawInput, validatedInput, condition ]);
     }
 
-    public Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
+    public Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
     {
         string internalName = Meta.InternalName;
 
@@ -62,11 +62,11 @@ internal sealed class CopyProgressAnalyzerStep : IAnalyzerStep
                 );
         }
 
-        return Task.FromResult(stepInput);
+        return Task.FromResult<object>(input);
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition)
     {
-        return makeExecutor(serviceProvider, input, condition);
+        return makeExecutor(serviceProvider, rawInput, (CopyProgressStepInput)validatedInput, condition);
     }
 }

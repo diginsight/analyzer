@@ -6,7 +6,9 @@ public interface IAnalyzerStepExecutor
 {
     StepMeta Meta { get; }
 
-    JObject Input { get; }
+    JObject RawInput { get; }
+
+    object ValidatedInput { get; }
 
     IStepCondition Condition { get; }
 

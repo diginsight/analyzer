@@ -12,7 +12,7 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class DelayAnalyzerStep : IAnalyzerStep
 {
-    private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, JObject, DelayAnalyzerStepInput.Validated, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -23,11 +23,11 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<DelayAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<DelayAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
-        makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
+            ActivatorUtilities.CreateFactory<DelayAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(DelayAnalyzerStepInput.Validated), typeof(IStepCondition) ]);
+        makeExecutor = (sp, rawInput, validatedInput, condition) => objectFactory(sp, [ meta, rawInput, validatedInput, condition ]);
     }
 
-    public Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
+    public Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
     {
         string internalName = Meta.InternalName;
 
@@ -41,13 +41,18 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
             throw AnalysisExceptions.InvalidInput(internalName, exception);
         }
 
-        DelayAnalyzerStepInput.Final Validate()
+        DelayAnalyzerStepInput.Validated Validate()
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             AnalysisException SpecifyOneDelayValueException() => new (
                 $"Specify only one among `delay`, `delaySeconds` or `delayMilliseconds` in '{internalName}' step",
                 HttpStatusCode.BadRequest,
                 "SpecifyOneDelayValue"
+            );
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            AnalysisException MalformedDelayException() => new (
+                $"Malformed `delay` value in '{internalName}' step", HttpStatusCode.BadRequest, "MalformedDelay"
             );
 
             switch (input)
@@ -58,28 +63,30 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
                         throw SpecifyOneDelayValueException();
                     }
 
-                    if (TimeSpan.TryParse(delayStr, CultureInfo.InvariantCulture, out TimeSpan delayTs))
+                    if (!TimeSpan.TryParse(delayStr, CultureInfo.InvariantCulture, out TimeSpan delayTs))
                     {
-                        return new DelayAnalyzerStepInput.Final(delayTs);
+                        try
+                        {
+                            delayTs = XmlConvert.ToTimeSpan(delayStr);
+                        }
+                        catch (FormatException)
+                        {
+                            throw MalformedDelayException();
+                        }
                     }
 
-                    try
-                    {
-                        return new DelayAnalyzerStepInput.Final(XmlConvert.ToTimeSpan(delayStr));
-                    }
-                    catch (FormatException)
-                    {
-                        throw new AnalysisException($"Malformed `delay` value in '{internalName}' step", HttpStatusCode.BadRequest, "MalformedDelay");
-                    }
+                    return delayTs >= TimeSpan.Zero
+                        ? new DelayAnalyzerStepInput.Validated(delayTs)
+                        : throw MalformedDelayException();
 
                 case { DelaySeconds: { } delaySeconds }:
                     return input is { Delay: null, DelayMilliseconds: null }
-                        ? new DelayAnalyzerStepInput.Final(TimeSpan.FromSeconds(delaySeconds))
+                        ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromSeconds(delaySeconds))
                         : throw SpecifyOneDelayValueException();
 
                 case { DelayMilliseconds: { } delayMilliseconds }:
                     return input is { Delay: null, DelaySeconds: null }
-                        ? new DelayAnalyzerStepInput.Final(TimeSpan.FromMilliseconds(delayMilliseconds))
+                        ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromMilliseconds(delayMilliseconds))
                         : throw SpecifyOneDelayValueException();
 
                 default:
@@ -91,11 +98,11 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
             }
         }
 
-        return Task.FromResult(JObject.FromObject(Validate()));
+        return Task.FromResult<object>(Validate());
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition)
     {
-        return makeExecutor(serviceProvider, input, condition);
+        return makeExecutor(serviceProvider, rawInput, (DelayAnalyzerStepInput.Validated)validatedInput, condition);
     }
 }

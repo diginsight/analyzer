@@ -95,12 +95,12 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
             string internalName = analyzerStep.Meta.InternalName;
 
             LogMessages.ValidatingInput(logger, internalName);
-            JObject validatedStepInput = await analyzerStep.ValidateAsync(stepInput, cancellationToken);
+            object validatedStepInput = await analyzerStep.ValidateAsync(stepInput, cancellationToken);
 
             LogMessages.CompilingCondition(logger, internalName);
             IStepCondition condition = compiler.CompileCondition(analyzerStep.Meta);
 
-            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, validatedStepInput, condition));
+            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, stepInput, validatedStepInput, condition));
         }
 
         return stepExecutorProtos2;

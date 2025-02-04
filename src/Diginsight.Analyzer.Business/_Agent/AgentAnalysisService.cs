@@ -262,7 +262,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
                     .Select(
                         x =>
                         {
-                            IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.Input, x.Condition);
+                            IAnalyzerStepExecutor stepExecutor = x.Step.CreateExecutor(sp, x.RawInput, x.ValidatedInput, x.Condition);
                             // ReSharper disable once SuspiciousTypeConversion.Global
                             if (stepExecutor is IDisposable disposable)
                             {

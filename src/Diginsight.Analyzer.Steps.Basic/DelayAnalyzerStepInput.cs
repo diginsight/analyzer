@@ -12,5 +12,5 @@ internal static class DelayAnalyzerStepInput
         public int? DelayMilliseconds { get; init; }
     }
 
-    public sealed record Final(TimeSpan Delay);
+    public sealed record Validated(TimeSpan Delay);
 }

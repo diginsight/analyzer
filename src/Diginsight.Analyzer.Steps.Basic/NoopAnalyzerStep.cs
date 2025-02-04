@@ -7,6 +7,8 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class NoopAnalyzerStep : IAnalyzerStep
 {
+    internal static readonly object ValidatedInput = new ();
+
     private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
@@ -19,16 +21,16 @@ internal sealed class NoopAnalyzerStep : IAnalyzerStep
 
         ObjectFactory<NoopAnalyzerStepExecutor> objectFactory =
             ActivatorUtilities.CreateFactory<NoopAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
-        makeExecutor = (sp, input, condition) => objectFactory(sp, [ meta, input, condition ]);
+        makeExecutor = (sp, rawInput, condition) => objectFactory(sp, [ meta, rawInput, condition ]);
     }
 
-    public Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
+    public Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
     {
-        return stepInput.Count > 0 ? throw AnalysisExceptions.UnexpectedInput(Meta.InternalName) : Task.FromResult(stepInput);
+        return stepInput.Count > 0 ? throw AnalysisExceptions.UnexpectedInput(Meta.InternalName) : Task.FromResult(ValidatedInput);
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition)
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition)
     {
-        return makeExecutor(serviceProvider, input, condition);
+        return makeExecutor(serviceProvider, rawInput, condition);
     }
 }

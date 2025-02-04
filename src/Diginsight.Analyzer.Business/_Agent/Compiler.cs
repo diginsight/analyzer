@@ -212,7 +212,9 @@ internal sealed class Compiler : ICompiler
 
         //public DateTime StartedAt => analysisContext.StartedAt;
 
-        public IEnumerable<StepHistoryView> Steps => analysisContext.Steps.Select(static x => new StepHistoryView(x));
+        [field: MaybeNull]
+        public IDictionary<string, StepHistoryView> Steps =>
+            field ??= analysisContext.Steps.ToDictionary(static x => x.Meta.InternalName, static x => new StepHistoryView(x));
 
         public AnalysisContextView(IAnalysisContextRO analysisContext)
             : base(analysisContext)
@@ -229,6 +231,11 @@ internal sealed class Compiler : ICompiler
         public bool IsSkipped => stepHistory.IsSkipped;
 
         public string Template => stepHistory.Meta.Template;
+
+        public string InternalName => stepHistory.Meta.InternalName;
+
+        [field: MaybeNull]
+        public IList<string> DependsOn => field ??= stepHistory.Meta.DependsOn.ToArray();
 
         public StepHistoryView(IStepHistoryRO stepHistory)
             : base(stepHistory)

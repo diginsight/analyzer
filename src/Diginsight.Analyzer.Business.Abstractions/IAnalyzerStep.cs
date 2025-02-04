@@ -11,11 +11,11 @@ public interface IAnalyzerStep
 
     StepMeta Meta { get; }
 
-    Task<JObject> ValidateAsync(JObject stepInput, CancellationToken cancellationToken);
+    Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken);
 
     Task<bool> HasConflictAsync(IEnumerable<StepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
 
-    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject input, IStepCondition condition);
+    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition);
 
 #if FEATURE_REPORTS
     StepReport GetReport(TimeBoundStatus status, JObject progress) => new (Meta.InternalName, status);
