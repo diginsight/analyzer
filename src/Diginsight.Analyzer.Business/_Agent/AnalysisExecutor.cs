@@ -167,35 +167,39 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             .SelectMany(GetTrails);
 
         foreach (IEnumerable<string> trail in trails)
-        foreach (string step in trail)
         {
-            StepHistory stepHistory = analysisContext.GetStep(step);
-
-            if (stepHistory.IsSkipped)
+            foreach (string step in trail)
             {
-                continue;
-            }
-            if (stepHistory.IsFailed)
-            {
-                analysisContext.Fail("StepFailure");
-                return;
-            }
+                StepHistory stepHistory = analysisContext.GetStep(step);
 
-            switch (stepHistory.Status)
-            {
-                case TimeBoundStatus.Pending:
-                case TimeBoundStatus.Running:
-                    throw new UnreachableException($"Unexpected {nameof(TimeBoundStatus)}");
-
-                case TimeBoundStatus.Completed:
-                case TimeBoundStatus.PartiallyCompleted:
-                case TimeBoundStatus.Aborting:
-                case TimeBoundStatus.Aborted:
+                if (stepHistory.IsSkipped)
+                {
+                    continue;
+                }
+                if (stepHistory.IsFailed)
+                {
+                    analysisContext.Fail("StepFailure");
                     return;
+                }
 
-                default:
-                    throw new UnreachableException($"Unrecognized {nameof(TimeBoundStatus)}");
+                switch (stepHistory.Status)
+                {
+                    case TimeBoundStatus.Pending:
+                    case TimeBoundStatus.Running:
+                        throw new UnreachableException($"Unexpected {nameof(TimeBoundStatus)}");
+
+                    case TimeBoundStatus.Completed:
+                    case TimeBoundStatus.PartiallyCompleted:
+                    case TimeBoundStatus.Aborting:
+                    case TimeBoundStatus.Aborted:
+                        goto nextTrail;
+
+                    default:
+                        throw new UnreachableException($"Unrecognized {nameof(TimeBoundStatus)}");
+                }
             }
+
+            nextTrail: ;
         }
     }
 
