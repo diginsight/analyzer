@@ -1,7 +1,9 @@
 ﻿using Diginsight.Analyzer.Business;
+using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Repositories.Models;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Diginsight.Analyzer.Steps;
 
@@ -12,21 +14,24 @@ internal sealed class CopyProgressAnalyzerStepExecutor : IAnalyzerStepExecutor
 
     public StepMeta Meta { get; }
     public JObject RawInput { get; }
-    public object ValidatedInput => input;
+
+    public object ValidatedInput
+    {
+        get => input;
+        [MemberNotNull(nameof(input))]
+        private init => input = (CopyProgressStepInput)value;
+    }
+
     public IStepCondition Condition { get; }
 
     public CopyProgressAnalyzerStepExecutor(
         StepMeta meta,
-        JObject rawInput,
-        CopyProgressStepInput validatedInput,
-        IStepCondition condition,
+        AnalyzerStepExecutorInputs inputs,
         ISnapshotService snapshotService
     )
     {
         Meta = meta;
-        RawInput = rawInput;
-        input = validatedInput;
-        Condition = condition;
+        (RawInput, ValidatedInput, Condition) = inputs;
 
         this.snapshotService = snapshotService;
     }

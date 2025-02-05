@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Diginsight.Analyzer.Business.Models;
+using Newtonsoft.Json.Linq;
 #if FEATURE_REPORTS
 using Diginsight.Analyzer.Business.Models;
 #endif
@@ -15,7 +16,7 @@ public interface IAnalyzerStep
 
     Task<bool> HasConflictAsync(IEnumerable<StepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
 
-    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition);
+    IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, AnalyzerStepExecutorInputs inputs);
 
 #if FEATURE_REPORTS
     StepReport GetReport(TimeBoundStatus status, JObject progress) => new (Meta.InternalName, status);

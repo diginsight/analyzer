@@ -100,7 +100,7 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
             LogMessages.CompilingCondition(logger, internalName);
             IStepCondition condition = compiler.CompileCondition(analyzerStep.Meta);
 
-            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, stepInput, validatedStepInput, condition));
+            stepExecutorProtos2.Add(new AnalyzerStepExecutorProto2(analyzerStep, new AnalyzerStepExecutorInputs(stepInput, validatedStepInput, condition)));
         }
 
         return stepExecutorProtos2;

@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Business;
+using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -12,7 +13,7 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class DelayAnalyzerStep : IAnalyzerStep
 {
-    private readonly Func<IServiceProvider, JObject, DelayAnalyzerStepInput.Validated, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, AnalyzerStepExecutorInputs, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -23,8 +24,8 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<DelayAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<DelayAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(DelayAnalyzerStepInput.Validated), typeof(IStepCondition) ]);
-        makeExecutor = (sp, rawInput, validatedInput, condition) => objectFactory(sp, [ meta, rawInput, validatedInput, condition ]);
+            ActivatorUtilities.CreateFactory<DelayAnalyzerStepExecutor>([ typeof(StepMeta), typeof(AnalyzerStepExecutorInputs) ]);
+        makeExecutor = (sp, inputs) => objectFactory(sp, [ meta, inputs ]);
     }
 
     public Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
@@ -101,8 +102,8 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
         return Task.FromResult<object>(Validate());
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition)
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, AnalyzerStepExecutorInputs inputs)
     {
-        return makeExecutor(serviceProvider, rawInput, (DelayAnalyzerStepInput.Validated)validatedInput, condition);
+        return makeExecutor(serviceProvider, inputs);
     }
 }

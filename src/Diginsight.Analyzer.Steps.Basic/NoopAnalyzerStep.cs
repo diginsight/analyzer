@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Business;
+using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
@@ -7,9 +8,9 @@ namespace Diginsight.Analyzer.Steps;
 
 internal sealed class NoopAnalyzerStep : IAnalyzerStep
 {
-    internal static readonly object ValidatedInput = new ();
+    private static readonly object ValidatedInput = new ();
 
-    private readonly Func<IServiceProvider, JObject, IStepCondition, IAnalyzerStepExecutor> makeExecutor;
+    private readonly Func<IServiceProvider, AnalyzerStepExecutorInputs, IAnalyzerStepExecutor> makeExecutor;
 
     public IAnalyzerStepTemplate Template { get; }
     public StepMeta Meta { get; }
@@ -20,8 +21,8 @@ internal sealed class NoopAnalyzerStep : IAnalyzerStep
         Meta = meta;
 
         ObjectFactory<NoopAnalyzerStepExecutor> objectFactory =
-            ActivatorUtilities.CreateFactory<NoopAnalyzerStepExecutor>([ typeof(StepMeta), typeof(JObject), typeof(IStepCondition) ]);
-        makeExecutor = (sp, rawInput, condition) => objectFactory(sp, [ meta, rawInput, condition ]);
+            ActivatorUtilities.CreateFactory<NoopAnalyzerStepExecutor>([ typeof(StepMeta), typeof(AnalyzerStepExecutorInputs) ]);
+        makeExecutor = (sp, inputs) => objectFactory(sp, [ meta, inputs ]);
     }
 
     public Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken)
@@ -29,8 +30,8 @@ internal sealed class NoopAnalyzerStep : IAnalyzerStep
         return stepInput.Count > 0 ? throw AnalysisExceptions.UnexpectedInput(Meta.InternalName) : Task.FromResult(ValidatedInput);
     }
 
-    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, JObject rawInput, object validatedInput, IStepCondition condition)
+    public IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, AnalyzerStepExecutorInputs inputs)
     {
-        return makeExecutor(serviceProvider, rawInput, condition);
+        return makeExecutor(serviceProvider, inputs);
     }
 }

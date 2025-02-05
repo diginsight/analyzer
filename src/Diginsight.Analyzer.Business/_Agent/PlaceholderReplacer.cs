@@ -28,9 +28,9 @@ internal sealed class PlaceholderReplacer : IPlaceholderReplacer
                 Resolver.Builder()
                     .AddObject(new AnalysisContextView(analysisContext))
                     .AddReason(analysisContext)
-                    .AddSequence<object>("steps", analysisContext.Steps.Select(StepToContainer).ToArray())
+                    .AddSequence<object>("allsteps", analysisContext.Steps.Select(StepToContainer).ToArray())
                     .AddPrefixedContainer(
-                        "step",
+                        "steps",
                         analysisContext.Steps
                             .Aggregate(Resolver.Builder(), static (b, s) => b.AddPrefixedContainer(s.Meta.InternalName, StepToContainer(s)))
                             .CombinedResult()
