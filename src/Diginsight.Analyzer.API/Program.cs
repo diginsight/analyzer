@@ -100,9 +100,10 @@ internal static partial class Program
             services
                 .AddSingleton<IAgentAmbientService, AgentAmbientService>()
                 .AddSingleton<IWaitingService, AgentWaitingService>();
+
             services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IEventSender, AgentWaitingService>(
-                    static sp => (AgentWaitingService)sp.GetRequiredService<IWaitingService>()
+                ServiceDescriptor.Transient<IEventSender, AgentWaitingService.EventSender>(
+                    static sp => new AgentWaitingService.EventSender((AgentWaitingService)sp.GetRequiredService<IWaitingService>())
                 )
             );
         }
@@ -145,6 +146,15 @@ internal static partial class Program
         {
             app.UseHttpsRedirection();
         }
+
+        app.Use(
+            static next =>
+                httpContext =>
+                {
+                    httpContext.Request.EnableBuffering();
+                    return next(httpContext);
+                }
+        );
 
         app.UseRouting();
 

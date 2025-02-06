@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace Diginsight.Analyzer.API.Services;
 
-internal sealed class AgentWaitingService : IWaitingService, IEventSender
+internal sealed class AgentWaitingService : IWaitingService
 {
     private readonly ISnapshotService snapshotService;
 
@@ -30,17 +30,27 @@ internal sealed class AgentWaitingService : IWaitingService, IEventSender
         }
     }
 
-    public Task SendAsync(Event @event)
+    private ManualResetEventSlim GetMre(Guid executionId) => mres.GetOrAdd(executionId, static _ => new ManualResetEventSlim());
+
+    public sealed class EventSender : IEventSender
     {
-        if (@event.EventKind == EventKind.AnalysisFinished &&
-            @event.Meta.GetValue("waitForCompletion", StringComparison.OrdinalIgnoreCase)?.TryToObject(out bool wait) == true &&
-            wait)
+        private readonly AgentWaitingService owner;
+
+        public EventSender(AgentWaitingService owner)
         {
-            GetMre(@event.ExecutionCoord.Id).Set();
+            this.owner = owner;
         }
 
-        return Task.CompletedTask;
-    }
+        public Task SendAsync(Event @event)
+        {
+            if (@event.EventKind == EventKind.AnalysisFinished &&
+                @event.Meta.GetValue("waitForCompletion", StringComparison.OrdinalIgnoreCase)?.TryToObject(out bool wait) == true &&
+                wait)
+            {
+                owner.GetMre(@event.ExecutionCoord.Id).Set();
+            }
 
-    private ManualResetEventSlim GetMre(Guid executionId) => mres.GetOrAdd(executionId, static _ => new ManualResetEventSlim());
+            return Task.CompletedTask;
+        }
+    }
 }

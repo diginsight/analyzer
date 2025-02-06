@@ -273,11 +273,15 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
                     )
                     .ToArray();
 
-                IEnumerable<IEventSender> eventSenders = pluginService.CreateEventSenders(sp);
+                IEnumerable<IEventSender> pluginEventSenders = pluginService.CreateEventSenders(sp);
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                disposables.AddRange(eventSenders.OfType<IDisposable>());
+                disposables.AddRange(pluginEventSenders.OfType<IDisposable>());
 
-                return (stepExecutors, eventSenders, sp.GetRequiredService<IAnalysisExecutor>());
+                return (
+                    stepExecutors,
+                    pluginEventSenders.Concat(sp.GetServices<IEventSender>()).ToArray(),
+                    sp.GetRequiredService<IAnalysisExecutor>()
+                );
             },
             (services, ct) =>
             {

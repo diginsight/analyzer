@@ -57,7 +57,7 @@ public class AgentAnalysisController : AnalysisController
     {
         if (globalMeta?.EventMeta is null && !wait)
         {
-            return null;
+            return globalMeta;
         }
 
         GlobalMeta otherGlobalMeta = new (eventMeta: new JObject() { ["waitForCompletion"] = wait });
