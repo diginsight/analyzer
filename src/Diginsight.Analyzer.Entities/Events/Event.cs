@@ -10,5 +10,5 @@ public abstract class Event
 
     public required DateTime Timestamp { get; init; }
 
-    public required JObject RecipientInput { get; init; }
+    public required JObject Meta { get; init; }
 }

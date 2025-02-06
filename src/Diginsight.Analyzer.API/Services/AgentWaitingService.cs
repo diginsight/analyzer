@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Business;
+using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Entities.Events;
 using Diginsight.Analyzer.Repositories.Models;
 using System.Collections.Concurrent;
@@ -18,13 +19,22 @@ internal sealed class AgentWaitingService : IWaitingService, IEventSender
 
     public async Task<AnalysisContextSnapshot> WaitAsync(Guid executionId, CancellationToken cancellationToken)
     {
-        GetMre(executionId).Wait(cancellationToken);
-        return (await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken))!;
+        try
+        {
+            GetMre(executionId).Wait(cancellationToken);
+            return (await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken))!;
+        }
+        finally
+        {
+            _ = mres.TryRemove(executionId, out _);
+        }
     }
 
-    public Task SendAsync(IEnumerable<Event> events)
+    public Task SendAsync(Event @event)
     {
-        foreach (Event @event in events.Where(static x => x.EventKind == EventKind.AnalysisFinished))
+        if (@event.EventKind == EventKind.AnalysisFinished &&
+            @event.Meta.GetValue("waitForCompletion", StringComparison.OrdinalIgnoreCase)?.TryToObject(out bool wait) == true &&
+            wait)
         {
             GetMre(@event.ExecutionCoord.Id).Set();
         }

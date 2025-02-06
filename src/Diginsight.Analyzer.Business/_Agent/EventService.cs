@@ -1,6 +1,5 @@
 ﻿using Diginsight.Analyzer.Entities.Events;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business;
 
@@ -18,22 +17,19 @@ internal sealed class EventService : IEventService
         this.timeProvider = timeProvider;
     }
 
-    public async Task EmitAsync(
-        IEnumerable<IEventSender> eventSenders, IEnumerable<EventRecipient> eventRecipients, Func<JObject, DateTime, Event> makeEvent
-    )
+    public async Task EmitAsync(IEnumerable<IEventSender> eventSenders, Func<DateTime, Event> makeEvent)
     {
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        IEnumerable<Event> events = eventRecipients.Select(er => makeEvent(er.Input, utcNow)).ToArray();
+        Event @event = makeEvent(timeProvider.GetUtcNow().UtcDateTime);
 
         foreach (IEventSender eventSender in eventSenders)
         {
             try
             {
-                await eventSender.SendAsync(events);
+                await eventSender.SendAsync(@event);
             }
             catch (Exception exception)
             {
-                logger.LogWarning(exception, "{EventSender} failed to send events", eventSender.GetType().Name);
+                logger.LogWarning(exception, "{EventSender} failed to send event", eventSender.GetType().Name);
             }
         }
     }

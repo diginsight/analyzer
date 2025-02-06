@@ -56,19 +56,18 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         );
 
         DateTime startedAt = analysisContext.StartedAt;
-        IEnumerable<EventRecipient> eventRecipients = globalMeta.EventRecipients ?? [ ];
+        JObject eventMeta = globalMeta.EventMeta ?? new JObject();
         ExecutionCoord executionCoord = new (ExecutionKind.Analysis, executionId);
 
         await infoRepository.InsertAsync(analysisContext);
         await eventService.EmitAsync(
             eventSenders,
-            eventRecipients,
-            (r, _) => new AnalysisStartedEvent()
+            _ => new AnalysisStartedEvent()
             {
                 ExecutionCoord = executionCoord,
                 AnalysisCoord = coord,
                 Timestamp = startedAt,
-                RecipientInput = r,
+                Meta = eventMeta,
                 Queued = queuedAt is not null,
             }
         );
@@ -87,13 +86,12 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             await infoRepository.UpsertAsync(analysisContext);
             await eventService.EmitAsync(
                 eventSenders,
-                eventRecipients,
-                (r, _) => new AnalysisFinishedEvent()
+                _ => new AnalysisFinishedEvent()
                 {
                     ExecutionCoord = executionCoord,
                     AnalysisCoord = coord,
                     Timestamp = analysisContext.FinishedAt!.Value,
-                    RecipientInput = r,
+                    Meta = eventMeta,
                     Status = analysisContext.IsFailed ? FinishedEventStatus.Failed
                         : analysisContext.Status == TimeBoundStatus.Aborted ? FinishedEventStatus.Aborted
                         : FinishedEventStatus.Completed,
@@ -414,7 +412,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     {
         ExecutionCoord executionCoord = analysisContext.ExecutionCoord;
         AnalysisCoord analysisCoord = analysisContext.AnalysisCoord;
-        IEnumerable<EventRecipient> eventRecipients = analysisContext.GlobalMeta.EventRecipients ?? [ ];
+        JObject eventMeta = analysisContext.GlobalMeta.EventMeta ?? new JObject();
         (string template, string internalName) = stepExecutor.Meta;
 
         StepHistory stepHistory = analysisContext.GetStep(internalName);
@@ -441,13 +439,12 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         await infoRepository.UpsertAsync(analysisContext);
         await eventService.EmitAsync(
             eventSenders,
-            eventRecipients,
-            (r, _) => new StepStartedEvent()
+            _ => new StepStartedEvent()
             {
                 ExecutionCoord = executionCoord,
                 AnalysisCoord = analysisCoord,
                 Timestamp = startedAt,
-                RecipientInput = r,
+                Meta = eventMeta,
                 Template = template,
                 InternalName = internalName,
                 Phase = phase,
@@ -470,8 +467,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             await infoRepository.UpsertAsync(analysisContext);
             await eventService.EmitAsync(
                 eventSenders,
-                eventRecipients,
-                (r, _) => new StepFinishedEvent()
+                _ => new StepFinishedEvent()
                 {
                     ExecutionCoord = executionCoord,
                     AnalysisCoord = analysisCoord,
@@ -482,7 +478,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                         Phase.Teardown => stepHistory.TeardownFinishedAt!.Value,
                         _ => throw new UnreachableException($"Unrecognized {nameof(Phase)}"),
                     },
-                    RecipientInput = r,
+                    Meta = eventMeta,
                     Template = template,
                     InternalName = internalName,
                     Phase = phase,

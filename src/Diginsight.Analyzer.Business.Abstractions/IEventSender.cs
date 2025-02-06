@@ -4,5 +4,5 @@ namespace Diginsight.Analyzer.Business;
 
 public interface IEventSender
 {
-    Task SendAsync(IEnumerable<Event> events);
+    Task SendAsync(Event @event);
 }

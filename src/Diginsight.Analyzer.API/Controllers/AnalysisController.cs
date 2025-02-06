@@ -153,12 +153,6 @@ public abstract class AnalysisController : ControllerBase
     private static readonly AnalysisException EmptyOutputPayloadException =
         new ("Empty `outputPayload` entry", HttpStatusCode.BadRequest, "EmptyOutputPayload");
 
-    private static readonly AnalysisException MalformedEventRecipientException =
-        new ("Malformed `eventRecipient` entry", HttpStatusCode.BadRequest, "MalformedEventRecipient");
-
-    private static readonly AnalysisException EmptyEventRecipientNameException =
-        new ("Empty `name` in event recipient entry", HttpStatusCode.BadRequest, "EmptyEventRecipientName");
-
     private static readonly AnalysisException NoStepDefinedException =
         new ("No step defined", HttpStatusCode.BadRequest, "NoStepDefined");
 
@@ -282,35 +276,19 @@ public abstract class AnalysisController : ControllerBase
     protected class GlobalDefinition
     {
         private readonly int? parallelism;
-        private readonly JArray? eventRecipients;
 
         protected int? Parallelism => parallelism is <= 0 ? throw AnalysisExceptions.InputNotPositive(nameof(parallelism)) : parallelism;
 
-        protected IEnumerable<EventRecipient>? EventRecipients
-        {
-            get
-            {
-                static EventRecipient ToEventRecipient(JToken jt)
-                {
-                    return jt.TryToObject(out string? str) && !string.IsNullOrEmpty(str)
-                        ? new EventRecipient(str)
-                        : jt.TryToObject(out EventRecipientDefinition? erd) && erd is not null
-                            ? erd.ToEventRecipient()
-                            : throw MalformedEventRecipientException;
-                }
-
-                return eventRecipients?.AsEnumerable().Select(ToEventRecipient).ToArray();
-            }
-        }
+        protected JObject? EventMeta { get; }
 
         [JsonConstructor]
-        protected GlobalDefinition(int? parallelism, JArray? eventRecipients)
+        protected GlobalDefinition(int? parallelism, JObject? eventMeta)
         {
             this.parallelism = parallelism;
-            this.eventRecipients = eventRecipients;
+            EventMeta = eventMeta;
         }
 
-        public virtual GlobalMeta ToMeta() => new (Parallelism, null, EventRecipients);
+        public virtual GlobalMeta ToMeta() => new (Parallelism, null, EventMeta);
     }
 
     [JsonObject(MissingMemberHandling = MissingMemberHandling.Error)]
@@ -334,10 +312,10 @@ public abstract class AnalysisController : ControllerBase
         private FullGlobalDefinition(
             int? parallelism = null,
             IEnumerable<string?>? outputPayloads = null,
-            JArray? eventRecipients = null,
+            JObject? eventMeta = null,
             IEnumerable<StepDefinition?>? steps = null
         )
-            : base(parallelism, eventRecipients)
+            : base(parallelism, eventMeta)
         {
             this.outputPayloads = outputPayloads;
             this.steps = steps;
@@ -350,26 +328,7 @@ public abstract class AnalysisController : ControllerBase
                 return outputPayload.HardTrim() ?? throw EmptyOutputPayloadException;
             }
 
-            return new GlobalMeta(Parallelism, outputPayloads?.Select(ValidateOutputPayload).ToArray(), EventRecipients);
-        }
-    }
-
-    [JsonObject(MissingMemberHandling = MissingMemberHandling.Error)]
-    protected sealed class EventRecipientDefinition
-    {
-        private readonly string? name;
-        private readonly JObject? input;
-
-        [JsonConstructor]
-        private EventRecipientDefinition(string? name = null, JObject? input = null)
-        {
-            this.input = input;
-            this.name = name;
-        }
-
-        public EventRecipient ToEventRecipient()
-        {
-            return new EventRecipient(string.IsNullOrEmpty(name) ? throw EmptyEventRecipientNameException : name, input);
+            return new GlobalMeta(Parallelism, outputPayloads?.Select(ValidateOutputPayload).ToArray(), EventMeta);
         }
     }
 

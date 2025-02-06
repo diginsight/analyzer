@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Entities;
 
@@ -8,24 +9,29 @@ public sealed class GlobalMeta
 
     public IEnumerable<string>? OutputPayloads { get; }
 
-    public IEnumerable<EventRecipient>? EventRecipients { get; }
+    public JObject? EventMeta { get; }
 
     [JsonConstructor]
     public GlobalMeta(
         int? parallelism = null,
         IEnumerable<string>? outputPayloads = null,
-        IEnumerable<EventRecipient>? eventRecipients = null
+        JObject? eventMeta = null
     )
     {
         Parallelism = parallelism;
         OutputPayloads = outputPayloads;
-        EventRecipients = eventRecipients;
+        EventMeta = eventMeta;
     }
 
     public GlobalMeta WithOverwrite(GlobalMeta? other)
     {
-        return other is null
-            ? this
-            : new GlobalMeta(other.Parallelism ?? Parallelism, OutputPayloads, other.EventRecipients ?? EventRecipients);
+        if (other is null)
+            return this;
+
+        JObject finalEventMeta = new ();
+        finalEventMeta.Merge(EventMeta);
+        finalEventMeta.Merge(other.EventMeta);
+
+        return new GlobalMeta(other.Parallelism ?? Parallelism, OutputPayloads, finalEventMeta);
     }
 }
