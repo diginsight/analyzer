@@ -82,12 +82,16 @@ internal sealed class DelayAnalyzerStep : IAnalyzerStep
 
                 case { DelaySeconds: { } delaySeconds }:
                     return input is { Delay: null, DelayMilliseconds: null }
-                        ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromSeconds(delaySeconds))
+                        ? delaySeconds >= 0
+                            ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromSeconds(delaySeconds))
+                            : throw MalformedDelayException()
                         : throw SpecifyOneDelayValueException();
 
                 case { DelayMilliseconds: { } delayMilliseconds }:
                     return input is { Delay: null, DelaySeconds: null }
-                        ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromMilliseconds(delayMilliseconds))
+                        ? delayMilliseconds >= 0
+                            ? new DelayAnalyzerStepInput.Validated(TimeSpan.FromMilliseconds(delayMilliseconds))
+                            : throw MalformedDelayException()
                         : throw SpecifyOneDelayValueException();
 
                 default:
