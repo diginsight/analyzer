@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.API.Models;
+using Diginsight.Analyzer.API.Services;
 using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Common;
@@ -20,28 +21,33 @@ namespace Diginsight.Analyzer.API.Controllers;
 public abstract class AnalysisController : ControllerBase
 {
     private readonly IAnalysisService analysisService;
+    private readonly IWaitingService waitingService;
     private readonly IHttpClientFactory httpClientFactory;
     private readonly JsonSerializer jsonSerializer;
 
     protected AnalysisController(
         IAnalysisService analysisService,
+        IWaitingService waitingService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
     {
         this.analysisService = analysisService;
+        this.waitingService = waitingService;
         this.httpClientFactory = httpClientFactory;
         this.jsonSerializer = jsonSerializer;
     }
 
     protected async Task<IActionResult> AnalyzeAsync<T>(
+        bool wait,
         Func<GlobalMeta, IEnumerable<StepInstance>, JObject, EncodedStream, IEnumerable<InputPayload>, CancellationToken, Task<T>> coreAnalyzeAsync,
         CancellationToken cancellationToken
     )
-        where T : notnull
+        where T : IExtendedAnalysisCoord
     {
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
 
+        T coord;
         try
         {
             FullGlobalDefinition globalDefinition;
@@ -64,7 +70,7 @@ public abstract class AnalysisController : ControllerBase
                 inputPayloads = [ ];
             }
 
-            T output = await coreAnalyzeAsync(
+            coord = await coreAnalyzeAsync(
                 globalDefinition.ToMeta(),
                 globalDefinition.Steps.Select(static x => x.ToInstance()).ToArray(),
                 progress,
@@ -72,8 +78,6 @@ public abstract class AnalysisController : ControllerBase
                 inputPayloads,
                 cancellationToken
             );
-
-            return Accepted(output);
         }
         finally
         {
@@ -82,23 +86,26 @@ public abstract class AnalysisController : ControllerBase
                 await disposable.DisposeAsync();
             }
         }
+
+        return wait ? Ok(await waitingService.WaitAsync(coord.ExecutionId, cancellationToken)) : Accepted(coord);
     }
 
     protected async Task<IActionResult> ReattemptAsync<T>(
         Guid analysisId,
+        bool wait,
         Func<Guid, GlobalMeta?, EncodedStream?, CancellationToken, Task<T>> coreReattemptAsync,
         CancellationToken cancellationToken
     )
+        where T : IExtendedAnalysisCoord
     {
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
 
+        T coord;
         try
         {
             (GlobalDefinition GlobalDefinition, EncodedStream DefinitionStream)? pair = await ParseGlobalDefinitionAsync(disposables, cancellationToken);
 
-            T output = await coreReattemptAsync(analysisId, pair?.GlobalDefinition.ToMeta(), pair?.DefinitionStream, cancellationToken);
-
-            return Accepted(output);
+            coord = await coreReattemptAsync(analysisId, pair?.GlobalDefinition.ToMeta(), pair?.DefinitionStream, cancellationToken);
         }
         finally
         {
@@ -107,6 +114,8 @@ public abstract class AnalysisController : ControllerBase
                 await disposable.DisposeAsync();
             }
         }
+
+        return wait ? Ok(await waitingService.WaitAsync(coord.ExecutionId, cancellationToken)) : Accepted(coord);
     }
 
     [HttpDelete("execution/{executionId:guid}")]

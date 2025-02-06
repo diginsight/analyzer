@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.API.Attributes;
+using Diginsight.Analyzer.API.Services;
 using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
@@ -18,24 +19,25 @@ public class AgentAnalysisController : AnalysisController
 
     public AgentAnalysisController(
         IAgentAnalysisService analysisService,
+        IWaitingService waitingService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
-        : base(analysisService, httpClientFactory, jsonSerializer)
+        : base(analysisService, waitingService, httpClientFactory, jsonSerializer)
     {
         this.analysisService = analysisService;
     }
 
     [HttpPost("analysis")]
-    public Task<IActionResult> Analyze()
+    public Task<IActionResult> Analyze([FromQuery] bool wait = false)
     {
-        return AnalyzeAsync(analysisService.AnalyzeAsync, HttpContext.RequestAborted);
+        return AnalyzeAsync(wait, analysisService.AnalyzeAsync, HttpContext.RequestAborted);
     }
 
     [HttpPost("analysis/{analysisId:guid}/attempt")]
-    public Task<IActionResult> Reattempt([FromRoute] Guid analysisId)
+    public Task<IActionResult> Reattempt([FromRoute] Guid analysisId, [FromQuery] bool wait = false)
     {
-        return ReattemptAsync(analysisId, analysisService.ReattemptAsync, HttpContext.RequestAborted);
+        return ReattemptAsync(analysisId, wait, analysisService.ReattemptAsync, HttpContext.RequestAborted);
     }
 
     [HttpPost("execution/{executionId:guid}")]

@@ -97,7 +97,18 @@ internal static partial class Program
 
         if (isAgent)
         {
-            services.AddSingleton<IAgentAmbientService, AgentAmbientService>();
+            services
+                .AddSingleton<IAgentAmbientService, AgentAmbientService>()
+                .AddSingleton<IWaitingService, AgentWaitingService>();
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IEventSender, AgentWaitingService>(
+                    static sp => (AgentWaitingService)sp.GetRequiredService<IWaitingService>()
+                )
+            );
+        }
+        else
+        {
+            services.AddSingleton<IWaitingService, OrchestratorWaitingService>();
         }
 
         services.AddHealthChecks();
