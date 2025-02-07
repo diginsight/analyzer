@@ -17,7 +17,7 @@ internal sealed class AgentAnalysisContextFactory : IAgentAnalysisContextFactory
         this.timeProvider = timeProvider;
     }
 
-    public IAnalysisContext Make(
+    public IAgentAnalysisContext Make(
         Guid executionId,
         AnalysisCoord coord,
         GlobalMeta globalMeta,

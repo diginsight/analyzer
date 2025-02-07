@@ -1,10 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Diginsight.Analyzer.Business.Models;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business;
 
-public interface IAgentAnalysisContextFactory
+internal interface IAgentAnalysisContextFactory
 {
-    IAnalysisContext Make(
+    IAgentAnalysisContext Make(
         Guid executionId,
         AnalysisCoord coord,
         GlobalMeta globalMeta,

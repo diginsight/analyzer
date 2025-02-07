@@ -33,7 +33,7 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
         this.serviceProvider = serviceProvider;
     }
 
-    public async Task<IEnumerable<AnalyzerStepExecutorProto2>> CalculateStepsAsync(IEnumerable<StepInstance> steps, CancellationToken cancellationToken)
+    public async Task<IEnumerable<AnalyzerStepExecutorProto2>> CalculateStepsAsync(IEnumerable<IStepInstance> steps, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, IAnalyzerStepTemplate> analyzerStepTemplates = pluginService.CreateAnalyzerStepTemplates(serviceProvider);
 

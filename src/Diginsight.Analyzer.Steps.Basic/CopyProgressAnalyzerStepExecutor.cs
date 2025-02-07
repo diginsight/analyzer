@@ -36,7 +36,7 @@ internal sealed class CopyProgressAnalyzerStepExecutor : IAnalyzerStepExecutor
         this.snapshotService = snapshotService;
     }
 
-    public async Task ExecuteAsync(IAnalysisContext analysisContext, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(IAnalysisContext analysisContext, IStepHistory stepHistory, CancellationToken cancellationToken)
     {
         AnalysisContextSnapshot? snapshot;
         if (input.AnalysisId is { } analysisId)
@@ -51,7 +51,7 @@ internal sealed class CopyProgressAnalyzerStepExecutor : IAnalyzerStepExecutor
 
         if (snapshot is null)
         {
-            analysisContext.GetStep(Meta.InternalName).Fail("NoSource");
+            stepHistory.Fail("NoSource");
             return;
         }
 

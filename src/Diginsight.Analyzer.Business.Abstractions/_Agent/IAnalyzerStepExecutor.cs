@@ -14,9 +14,9 @@ public interface IAnalyzerStepExecutor
 
     bool DisableProgressFlushTimer => false;
 
-    Task SetupAsync(IAnalysisContextRO analysisContext, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task SetupAsync(IAnalysisContext analysisContext, IStepHistory stepHistory, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    Task ExecuteAsync(IAnalysisContext analysisContext, CancellationToken cancellationToken);
+    Task ExecuteAsync(IAnalysisContext analysisContext, IStepHistory stepHistory, CancellationToken cancellationToken);
 
-    Task TeardownAsync(IAnalysisContextRO analysisContext, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task TeardownAsync(IAnalysisContext analysisContext, IStepHistory stepHistory, CancellationToken cancellationToken) => Task.CompletedTask;
 }

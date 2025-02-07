@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business.Models;
 
-public sealed class AnalysisContext : ExecutionContext, IAnalysisContext
+internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
 {
     private readonly IReadOnlyList<StepHistory> steps;
     private readonly IReadOnlyDictionary<string, int> stepIndexes;
@@ -20,6 +20,8 @@ public sealed class AnalysisContext : ExecutionContext, IAnalysisContext
     public GlobalMeta GlobalMeta { get; }
 
     public IEnumerable<StepHistory> Steps => steps;
+
+    IEnumerable<IStepHistoryRO> IAnalysisContextRO.Steps => Steps;
 
     public JObject Progress { get; }
 
@@ -64,6 +66,8 @@ public sealed class AnalysisContext : ExecutionContext, IAnalysisContext
     }
 
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];
+
+    IStepHistoryRO IAnalysisContextRO.GetStep(string internalName) => GetStep(internalName);
 
     public override bool IsNotStarted() => startedAt is null;
 }

@@ -29,7 +29,7 @@ public sealed class AnalysisContextSnapshot : ExecutionContextSnapshot
 
     public GlobalMeta GlobalMeta { get; init; } = null!;
 
-    public IEnumerable<StepHistory> Steps { get; init; } = null!;
+    public IEnumerable<IStepHistoryRO> Steps { get; }
 
     [JsonProperty("status")]
     public TimeBoundStatus Status { get; init; }
@@ -39,11 +39,12 @@ public sealed class AnalysisContextSnapshot : ExecutionContextSnapshot
     public JObject? Progress { get; set; }
 
     [JsonConstructor]
-    internal AnalysisContextSnapshot(Guid id, Guid analysisId, int attempt)
+    internal AnalysisContextSnapshot(Guid id, Guid analysisId, int attempt, IEnumerable<StepHistory> steps)
         : base(id)
     {
         AnalysisId = analysisId;
         Attempt = attempt;
         AnalysisCoord = new AnalysisCoord(analysisId, attempt);
+        Steps = steps;
     }
 }

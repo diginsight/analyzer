@@ -1,6 +1,6 @@
 ﻿namespace Diginsight.Analyzer.Business.Models;
 
-public abstract class ExecutionContext : Failable, IExecutionContext
+internal abstract class ExecutionContext : Failable, IExecutionContext
 {
     public ExecutionCoord ExecutionCoord { get; }
 

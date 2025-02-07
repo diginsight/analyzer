@@ -2,5 +2,5 @@
 
 public interface IStepCondition
 {
-    bool TryEvaluate(IAnalysisContextRO analysisContext, StepHistory stepHistory, out bool result);
+    bool TryEvaluate(IAnalysisContextRO analysisContext, IStepHistory stepHistory, out bool result);
 }

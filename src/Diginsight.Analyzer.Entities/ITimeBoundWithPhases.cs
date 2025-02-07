@@ -2,11 +2,15 @@
 
 namespace Diginsight.Analyzer.Entities;
 
-public interface ITimeBoundWithPhases : ITimeBound
+public interface ITimeBoundWithPhases : ITimeBoundWithPhasesRO, ITimeBound
 {
     [DisallowNull]
-    DateTime? SetupFinishedAt { get; set; }
+    new DateTime? SetupFinishedAt { get; set; }
+
+    DateTime? ITimeBoundWithPhasesRO.SetupFinishedAt => SetupFinishedAt;
 
     [DisallowNull]
-    DateTime? TeardownFinishedAt { get; set; }
+    new DateTime? TeardownFinishedAt { get; set; }
+
+    DateTime? ITimeBoundWithPhasesRO.TeardownFinishedAt => TeardownFinishedAt;
 }

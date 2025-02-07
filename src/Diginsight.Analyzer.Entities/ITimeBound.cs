@@ -2,10 +2,14 @@
 
 namespace Diginsight.Analyzer.Entities;
 
-public interface ITimeBound
+public interface ITimeBound : ITimeBoundRO
 {
     [DisallowNull]
-    DateTime? FinishedAt { get; set; }
+    new DateTime? FinishedAt { get; set; }
 
-    TimeBoundStatus Status { get; set; }
+    DateTime? ITimeBoundRO.FinishedAt => FinishedAt;
+
+    new TimeBoundStatus Status { get; set; }
+
+    TimeBoundStatus ITimeBoundRO.Status => Status;
 }

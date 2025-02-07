@@ -28,7 +28,7 @@ internal sealed class DelayAnalyzerStepExecutor : IAnalyzerStepExecutor
         (RawInput, ValidatedInput, Condition) = inputs;
     }
 
-    public Task ExecuteAsync(IAnalysisContext analysisContext, CancellationToken cancellationToken)
+    public Task ExecuteAsync(IAnalysisContext analysisContext, IStepHistory stepHistory, CancellationToken cancellationToken)
     {
         return Task.Delay(input.Delay, cancellationToken);
     }

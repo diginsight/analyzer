@@ -57,7 +57,7 @@ internal sealed class Compiler : ICompiler
             this.library = library;
         }
 
-        public bool TryEvaluate(IAnalysisContextRO analysisContext, StepHistory stepHistory, out bool result)
+        public bool TryEvaluate(IAnalysisContextRO analysisContext, IStepHistory stepHistory, out bool result)
         {
             library.AnalysisContext = analysisContext;
 

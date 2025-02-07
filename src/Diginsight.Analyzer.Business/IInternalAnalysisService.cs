@@ -4,7 +4,7 @@ namespace Diginsight.Analyzer.Business;
 
 internal interface IInternalAnalysisService
 {
-    Task<IEnumerable<AnalyzerStepExecutorProto2>> CalculateStepsAsync(IEnumerable<StepInstance> steps, CancellationToken cancellationToken);
+    Task<IEnumerable<AnalyzerStepExecutorProto2>> CalculateStepsAsync(IEnumerable<IStepInstance> steps, CancellationToken cancellationToken);
 
     void FillLease(AnalysisLease lease, AnalysisCoord coord);
 

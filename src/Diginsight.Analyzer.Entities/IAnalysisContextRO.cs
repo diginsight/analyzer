@@ -2,7 +2,7 @@
 
 namespace Diginsight.Analyzer.Entities;
 
-public interface IAnalysisContextRO : IExecutionContextRO, ITimeBound
+public interface IAnalysisContextRO : IExecutionContextRO, ITimeBoundRO
 {
     AnalysisCoord AnalysisCoord { get; }
 

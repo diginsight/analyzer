@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Diginsight.Analyzer.Entities;
 
-public sealed class StepHistory : StepInstance, IStepHistoryRO, ISkippable, IFailable
+public sealed class StepHistory : StepInstance, IStepHistory, ITimeBoundWithPhases
 {
     private readonly SkippableFailable skippableFailable;
 

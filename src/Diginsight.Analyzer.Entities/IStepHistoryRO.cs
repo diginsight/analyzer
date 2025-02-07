@@ -1,14 +1,8 @@
-﻿using Newtonsoft.Json.Linq;
+﻿namespace Diginsight.Analyzer.Entities;
 
-namespace Diginsight.Analyzer.Entities;
-
-public interface IStepHistoryRO : ITimeBoundWithPhases, ISkippableRO, IFailableRO
+public interface IStepHistoryRO : IStepInstance, ITimeBoundWithPhasesRO, ISkippableRO, IFailableRO
 {
     new Exception? Reason { get; }
-
-    StepMeta Meta { get; }
-
-    JObject Input { get; }
 
     DateTime? SetupStartedAt { get; }
 

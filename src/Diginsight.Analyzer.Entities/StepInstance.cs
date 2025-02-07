@@ -4,7 +4,7 @@ using System.ComponentModel;
 
 namespace Diginsight.Analyzer.Entities;
 
-public class StepInstance
+public class StepInstance : IStepInstance
 {
     public StepMeta Meta { get; }
     public JObject Input { get; }

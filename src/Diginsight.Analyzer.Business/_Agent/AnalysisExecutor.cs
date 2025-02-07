@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Business.Configurations;
+using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities.Events;
 using Diginsight.Analyzer.Repositories;
 using Microsoft.Extensions.Logging;
@@ -46,7 +47,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         CancellationToken cancellationToken
     )
     {
-        IAnalysisContext analysisContext = analysisContextFactory.Make(
+        IAgentAnalysisContext analysisContext = analysisContextFactory.Make(
             executionId,
             coord,
             globalMeta,
@@ -119,8 +120,8 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
                         await WithStepHistoryAsync(
                             isSetup
-                                ? ct1 => stepExecutor.SetupAsync(analysisContext, ct1)
-                                : ct1 => stepExecutor.TeardownAsync(analysisContext, ct1),
+                                ? (stepHistory, ct1) => stepExecutor.SetupAsync(analysisContext, stepHistory, ct1)
+                                : (stepHistory, ct1) => stepExecutor.TeardownAsync(analysisContext, stepHistory, ct1),
                             analysisContext,
                             stepExecutor,
                             eventSenders,
@@ -168,7 +169,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         {
             foreach (string step in trail)
             {
-                StepHistory stepHistory = analysisContext.GetStep(step);
+                IStepHistoryRO stepHistory = analysisContext.GetStep(step);
 
                 if (stepHistory.IsSkipped)
                 {
@@ -204,7 +205,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     private async Task ExecuteMainAsync(
         IEnumerable<IAnalyzerStepExecutor> stepExecutors,
         IEnumerable<IEventSender> eventSenders,
-        IAnalysisContext analysisContext,
+        IAgentAnalysisContext analysisContext,
         int parallelism,
         CancellationToken cancellationToken
     )
@@ -318,9 +319,8 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
                                 Enqueue();
 
-                                async Task ExecuteIfEnabledAsync(CancellationToken ct)
+                                async Task ExecuteIfEnabledAsync(IStepHistory stepHistory, CancellationToken ct)
                                 {
-                                    StepHistory stepHistory = analysisContext.GetStep(internalName);
                                     if (!stepExecutor.Condition.TryEvaluate(analysisContext, stepHistory, out bool enabled))
                                     {
                                         return;
@@ -328,7 +328,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
 
                                     if (enabled)
                                     {
-                                        await stepExecutor.ExecuteAsync(analysisContext, ct);
+                                        await stepExecutor.ExecuteAsync(analysisContext, stepHistory, ct);
                                     }
                                     else
                                     {
@@ -410,8 +410,8 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     }
 
     private async Task WithStepHistoryAsync(
-        Func<CancellationToken, Task> runAsync,
-        IAnalysisContext analysisContext,
+        Func<IStepHistory, CancellationToken, Task> runAsync,
+        IAgentAnalysisContext analysisContext,
         IAnalyzerStepExecutor stepExecutor,
         IEnumerable<IEventSender> eventSenders,
         CancellationToken cancellationToken
@@ -463,7 +463,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             using IDisposable? timer = stepExecutor.DisableProgressFlushTimer
                 ? null
                 : infoRepository.StartTimedProgressFlush(analysisContext);
-            await WithTimeBoundAsync(runAsync, stepHistory, analysisContext, cancellationToken);
+            await WithTimeBoundAsync(ct => runAsync(stepHistory, ct), stepHistory, analysisContext, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException oce || oce.CancellationToken != cancellationToken)
         {
