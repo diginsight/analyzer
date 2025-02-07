@@ -1,36 +1,32 @@
 ﻿using Diginsight.Analyzer.Business;
-using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Entities.Events;
-using Diginsight.Analyzer.Repositories.Models;
-using System.Collections.Concurrent;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Diginsight.Analyzer.API.Services;
 
 internal sealed class AgentWaitingService : IWaitingService
 {
-    private readonly ISnapshotService snapshotService;
+    private readonly IMemoryCache memoryCache;
 
-    private readonly ConcurrentDictionary<Guid, ManualResetEventSlim> mres = new ();
-
-    public AgentWaitingService(ISnapshotService snapshotService)
+    public AgentWaitingService(ILoggerFactory loggerFactory)
     {
-        this.snapshotService = snapshotService;
+        memoryCache = new MemoryCache(new MemoryCacheOptions(), loggerFactory);
     }
 
-    public async Task<AnalysisContextSnapshot> WaitAsync(Guid executionId, CancellationToken cancellationToken)
+    public Task WaitAsync(Guid executionId, CancellationToken cancellationToken)
     {
-        try
-        {
-            GetMre(executionId).Wait(cancellationToken);
-            return (await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken))!;
-        }
-        finally
-        {
-            _ = mres.TryRemove(executionId, out _);
-        }
+        return Task.Run(() => GetMre(executionId).Wait(cancellationToken), cancellationToken);
     }
 
-    private ManualResetEventSlim GetMre(Guid executionId) => mres.GetOrAdd(executionId, static _ => new ManualResetEventSlim());
+    private ManualResetEventSlim GetMre(Guid executionId) => memoryCache.Get<ManualResetEventSlim>(executionId)!;
+
+    private void SetMre(Guid executionId, ManualResetEventSlim mre, TimeSpan? absoluteExpiration = null)
+    {
+        if (absoluteExpiration is { } absoluteExpiration0)
+            memoryCache.Set(executionId, mre, absoluteExpiration0);
+        else
+            memoryCache.Set(executionId, mre);
+    }
 
     public sealed class EventSender : IEventSender
     {
@@ -43,11 +39,28 @@ internal sealed class AgentWaitingService : IWaitingService
 
         public Task SendAsync(Event @event)
         {
-            if (@event.EventKind == EventKind.AnalysisFinished &&
-                @event.Meta.GetValue("waitForCompletion", StringComparison.OrdinalIgnoreCase)?.TryToObject(out bool wait) == true &&
-                wait)
+            switch (@event.EventKind)
             {
-                owner.GetMre(@event.ExecutionCoord.Id).Set();
+                case EventKind.AnalysisStarted:
+                {
+                    Guid executionId = @event.ExecutionCoord.Id;
+
+                    ManualResetEventSlim mre = new ();
+                    owner.SetMre(executionId, mre);
+
+                    break;
+                }
+
+                case EventKind.AnalysisFinished:
+                {
+                    Guid executionId = @event.ExecutionCoord.Id;
+
+                    ManualResetEventSlim mre = owner.GetMre(executionId)!;
+                    mre.Set();
+                    owner.SetMre(executionId, mre, TimeSpan.FromMinutes(5));
+
+                    break;
+                }
             }
 
             return Task.CompletedTask;

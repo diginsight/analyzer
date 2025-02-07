@@ -1,6 +1,8 @@
-﻿using Diginsight.Analyzer.Business;
+﻿using Diginsight.Analyzer.API.Services;
+using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Repositories.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Diginsight.Analyzer.API.Controllers;
@@ -8,10 +10,12 @@ namespace Diginsight.Analyzer.API.Controllers;
 public sealed class SnapshotController : ControllerBase
 {
     private readonly ISnapshotService snapshotService;
+    private readonly IWaitingService waitingService;
 
-    public SnapshotController(ISnapshotService snapshotService)
+    public SnapshotController(ISnapshotService snapshotService, IWaitingService waitingService)
     {
         this.snapshotService = snapshotService;
+        this.waitingService = waitingService;
     }
 
     [HttpGet("analysis")]
@@ -43,16 +47,32 @@ public sealed class SnapshotController : ControllerBase
     }
 
     [HttpGet("execution/{executionId:guid}")]
-    public async Task<IActionResult> GetSnapshot([FromRoute] Guid executionId, [FromQuery] bool skipProgress)
+    public async Task<IActionResult> GetSnapshot([FromRoute] Guid executionId, [FromQuery] bool skipProgress, [FromQuery] bool wait)
     {
-        return await snapshotService.GetAnalysisAsync(executionId, !skipProgress, HttpContext.RequestAborted) is { } snapshot
-            ? Ok(snapshot) : throw AnalysisExceptions.NoSuchExecution;
+        CancellationToken cancellationToken = HttpContext.RequestAborted;
+        return await snapshotService.GetAnalysisAsync(executionId, !skipProgress, cancellationToken) is { } snapshot
+            ? await OkOrWaitAsync(snapshot, skipProgress, wait, cancellationToken)
+            : throw AnalysisExceptions.NoSuchExecution;
     }
 
     [HttpGet("analysis/{analysisId:guid}/attempt/{attempt:int}")]
-    public async Task<IActionResult> GetSnapshot([FromRoute] Guid analysisId, [FromRoute] int attempt, [FromQuery] bool skipProgress)
+    public async Task<IActionResult> GetSnapshot([FromRoute] Guid analysisId, [FromRoute] int attempt, [FromQuery] bool skipProgress, [FromQuery] bool wait)
     {
-        return await snapshotService.GetAnalysisAsync(new AnalysisCoord(analysisId, attempt), !skipProgress, HttpContext.RequestAborted) is { } snapshot
-            ? Ok(snapshot) : throw AnalysisExceptions.NoSuchAnalysis;
+        CancellationToken cancellationToken = HttpContext.RequestAborted;
+        return await snapshotService.GetAnalysisAsync(new AnalysisCoord(analysisId, attempt), !skipProgress, cancellationToken) is { } snapshot
+            ? await OkOrWaitAsync(snapshot, skipProgress, wait, cancellationToken)
+            : throw AnalysisExceptions.NoSuchAnalysis;
+    }
+
+    private async Task<IActionResult> OkOrWaitAsync(AnalysisContextSnapshot snapshot, bool skipProgress, bool wait, CancellationToken cancellationToken)
+    {
+        if (!wait || snapshot.Status is TimeBoundStatus.Completed or TimeBoundStatus.Aborted)
+        {
+            return Ok(snapshot);
+        }
+
+        Guid executionId = snapshot.ExecutionId;
+        await waitingService.WaitAsync(executionId, cancellationToken);
+        return Ok(await snapshotService.GetAnalysisAsync(executionId, !skipProgress, cancellationToken));
     }
 }

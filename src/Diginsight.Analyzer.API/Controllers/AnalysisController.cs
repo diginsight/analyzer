@@ -21,18 +21,21 @@ namespace Diginsight.Analyzer.API.Controllers;
 public abstract class AnalysisController : ControllerBase
 {
     private readonly IAnalysisService analysisService;
+    private readonly ISnapshotService snapshotService;
     private readonly IWaitingService waitingService;
     private readonly IHttpClientFactory httpClientFactory;
     private readonly JsonSerializer jsonSerializer;
 
     protected AnalysisController(
         IAnalysisService analysisService,
+        ISnapshotService snapshotService,
         IWaitingService waitingService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
     {
         this.analysisService = analysisService;
+        this.snapshotService = snapshotService;
         this.waitingService = waitingService;
         this.httpClientFactory = httpClientFactory;
         this.jsonSerializer = jsonSerializer;
@@ -43,7 +46,7 @@ public abstract class AnalysisController : ControllerBase
         Func<GlobalMeta, IEnumerable<StepInstance>, JObject, EncodedStream, IEnumerable<InputPayload>, CancellationToken, Task<T>> coreAnalyzeAsync,
         CancellationToken cancellationToken
     )
-        where T : IExtendedAnalysisCoord
+        where T : IExecutionCoord
     {
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
 
@@ -87,7 +90,7 @@ public abstract class AnalysisController : ControllerBase
             }
         }
 
-        return wait ? Ok(await waitingService.WaitAsync(coord.ExecutionId, cancellationToken)) : Accepted(coord);
+        return await AcceptedOrWaitAsync(coord, wait, cancellationToken);
     }
 
     protected async Task<IActionResult> ReattemptAsync<T>(
@@ -96,7 +99,7 @@ public abstract class AnalysisController : ControllerBase
         Func<Guid, GlobalMeta?, EncodedStream?, CancellationToken, Task<T>> coreReattemptAsync,
         CancellationToken cancellationToken
     )
-        where T : IExtendedAnalysisCoord
+        where T : IExecutionCoord
     {
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
 
@@ -115,7 +118,19 @@ public abstract class AnalysisController : ControllerBase
             }
         }
 
-        return wait ? Ok(await waitingService.WaitAsync(coord.ExecutionId, cancellationToken)) : Accepted(coord);
+        return await AcceptedOrWaitAsync(coord, wait, cancellationToken);
+    }
+
+    private async Task<IActionResult> AcceptedOrWaitAsync(IExecutionCoord coord, bool wait, CancellationToken cancellationToken)
+    {
+        if (!wait)
+        {
+            return Accepted(coord);
+        }
+
+        Guid executionId = coord.Id;
+        await waitingService.WaitAsync(executionId, cancellationToken);
+        return Ok(await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken));
     }
 
     [HttpDelete("execution/{executionId:guid}")]

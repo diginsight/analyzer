@@ -5,8 +5,6 @@ using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
 namespace Diginsight.Analyzer.API.Controllers;
@@ -21,11 +19,12 @@ public class AgentAnalysisController : AnalysisController
 
     public AgentAnalysisController(
         IAgentAnalysisService analysisService,
+        ISnapshotService snapshotService,
         IWaitingService waitingService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
-        : base(analysisService, waitingService, httpClientFactory, jsonSerializer)
+        : base(analysisService, snapshotService, waitingService, httpClientFactory, jsonSerializer)
     {
         this.analysisService = analysisService;
     }
@@ -33,35 +32,13 @@ public class AgentAnalysisController : AnalysisController
     [HttpPost("analysis")]
     public Task<IActionResult> Analyze([FromQuery] bool wait = false)
     {
-        return AnalyzeAsync(
-            wait,
-            (globalMeta, steps, progress, definitionStream, inputPayloads, ct) =>
-                analysisService.AnalyzeAsync(Enrich(globalMeta, wait), steps, progress, definitionStream, inputPayloads, ct),
-            HttpContext.RequestAborted
-        );
+        return AnalyzeAsync(wait, analysisService.AnalyzeAsync, HttpContext.RequestAborted);
     }
 
     [HttpPost("analysis/{analysisId:guid}/attempt")]
     public Task<IActionResult> Reattempt([FromRoute] Guid analysisId, [FromQuery] bool wait = false)
     {
-        return ReattemptAsync(
-            analysisId,
-            wait,
-            (analysisId0, globalMeta, definitionStream, ct) => analysisService.ReattemptAsync(analysisId0, Enrich(globalMeta, wait), definitionStream, ct),
-            HttpContext.RequestAborted
-        );
-    }
-
-    [return: NotNullIfNotNull(nameof(globalMeta))]
-    private static GlobalMeta? Enrich(GlobalMeta? globalMeta, bool wait)
-    {
-        if (globalMeta?.EventMeta is null && !wait)
-        {
-            return globalMeta;
-        }
-
-        GlobalMeta otherGlobalMeta = new (eventMeta: new JObject() { ["waitForCompletion"] = wait });
-        return globalMeta is null ? otherGlobalMeta : globalMeta.WithOverwrite(otherGlobalMeta);
+        return ReattemptAsync(analysisId, wait, analysisService.ReattemptAsync, HttpContext.RequestAborted);
     }
 
     [HttpPost("execution/{executionId:guid}")]

@@ -16,12 +16,13 @@ public class OrchestratorAnalysisController : AnalysisController
 
     public OrchestratorAnalysisController(
         IOrchestratorAnalysisService analysisService,
-        IDequeuerService dequeuerService,
+        ISnapshotService snapshotService,
         IWaitingService waitingService,
         IHttpClientFactory httpClientFactory,
-        JsonSerializer jsonSerializer
+        JsonSerializer jsonSerializer,
+        IDequeuerService dequeuerService
     )
-        : base(analysisService, waitingService, httpClientFactory, jsonSerializer)
+        : base(analysisService, snapshotService, waitingService, httpClientFactory, jsonSerializer)
     {
         this.analysisService = analysisService;
         this.dequeuerService = dequeuerService;
