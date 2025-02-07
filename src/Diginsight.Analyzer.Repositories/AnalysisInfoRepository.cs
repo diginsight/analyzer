@@ -36,13 +36,13 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         repositoriesOptions.Dispose();
     }
 
-    public async Task InsertAsync(IAnalysisContext analysisContext)
+    public async Task InsertAsync(IAnalysisContextRO analysisContext)
     {
         await DeleteCoreAsync(analysisContext.ExecutionCoord.Id);
         await UpsertCoreAsync(analysisContext);
     }
 
-    public Task UpsertAsync(IAnalysisContext analysisContext)
+    public Task UpsertAsync(IAnalysisContextRO analysisContext)
     {
         return UpsertCoreAsync(analysisContext);
     }
@@ -52,7 +52,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         return DeleteCoreAsync(executionId);
     }
 
-    public IDisposable? StartTimedProgressFlush(IAnalysisContext analysisContext)
+    public IDisposable? StartTimedProgressFlush(IAnalysisContextRO analysisContext)
     {
         return StartTimedProgressFlush(() => WriteProgressAsync(analysisContext));
     }
@@ -208,7 +208,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         catch (CosmosException exception) when (exception.StatusCode == HttpStatusCode.NotFound) { }
     }
 
-    private async Task UpsertCoreAsync(IAnalysisContext analysisContext)
+    private async Task UpsertCoreAsync(IAnalysisContextRO analysisContext)
     {
         (Guid analysisId, int attempt) = analysisContext.AnalysisCoord;
         LogMessages.UpsertingAnalysisContext(logger, analysisId, attempt);
@@ -227,9 +227,9 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Task WriteProgressAsync(IAnalysisContext analysisContext)
+    private Task WriteProgressAsync(IAnalysisContextRO analysisContext)
     {
-        return fileRepository.WriteProgressAsync(analysisContext.Progress, analysisContext.AnalysisCoord, CancellationToken.None);
+        return fileRepository.WriteProgressAsync(analysisContext.ProgressRO, analysisContext.AnalysisCoord, CancellationToken.None);
     }
 
     private IDisposable? StartTimedProgressFlush(Func<Task> flushAsync)

@@ -47,14 +47,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         CancellationToken cancellationToken
     )
     {
-        IAgentAnalysisContext analysisContext = analysisContextFactory.Make(
-            executionId,
-            coord,
-            globalMeta,
-            stepExecutors.Select(static x => new StepInstance(x.Meta, x.RawInput)),
-            progress,
-            queuedAt
-        );
+        IAgentAnalysisContext analysisContext = analysisContextFactory.Make(executionId, coord, globalMeta, stepExecutors, progress, queuedAt);
 
         DateTime startedAt = analysisContext.StartedAt;
         JObject eventMeta = globalMeta.EventMeta ?? new JObject();
@@ -358,7 +351,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     }
 
     private async Task WithTimeBoundAsync(
-        Func<CancellationToken, Task> runAsync, ITimeBound timeBound, IAnalysisContext analysisContext, CancellationToken cancellationToken
+        Func<CancellationToken, Task> runAsync, ITimeBound timeBound, IAnalysisContextRO analysisContext, CancellationToken cancellationToken
     )
     {
         TimeBoundStatus completedStatus = timeBound is ITimeBoundWithPhases { FinishedAt: null }

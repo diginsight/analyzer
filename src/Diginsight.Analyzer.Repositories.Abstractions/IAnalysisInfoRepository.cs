@@ -4,13 +4,13 @@ namespace Diginsight.Analyzer.Repositories;
 
 public interface IAnalysisInfoRepository
 {
-    Task InsertAsync(IAnalysisContext analysisContext);
+    Task InsertAsync(IAnalysisContextRO analysisContext);
 
-    Task UpsertAsync(IAnalysisContext analysisContext);
+    Task UpsertAsync(IAnalysisContextRO analysisContext);
 
     Task DeleteAsync(Guid executionId);
 
-    IDisposable? StartTimedProgressFlush(IAnalysisContext analysisContext);
+    IDisposable? StartTimedProgressFlush(IAnalysisContextRO analysisContext);
 
     Task<Page<AnalysisContextSnapshot>> GetAnalysisSnapshotsAsync(int page, int pageSize, bool withProgress, bool queued, CancellationToken cancellationToken);
 

@@ -21,7 +21,7 @@ internal sealed class AgentAnalysisContextFactory : IAgentAnalysisContextFactory
         Guid executionId,
         AnalysisCoord coord,
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         DateTime? queuedAt
     )

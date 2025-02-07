@@ -14,7 +14,7 @@ public interface IAnalyzerStep
 
     Task<object> ValidateAsync(JObject stepInput, CancellationToken cancellationToken);
 
-    Task<bool> HasConflictAsync(IEnumerable<StepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
+    Task<bool> HasConflictAsync(IEnumerable<IStepInstance> steps, AnalysisLease lease, CancellationToken cancellationToken) => Task.FromResult(false);
 
     IAnalyzerStepExecutor CreateExecutor(IServiceProvider serviceProvider, AnalyzerStepExecutorInputs inputs);
 

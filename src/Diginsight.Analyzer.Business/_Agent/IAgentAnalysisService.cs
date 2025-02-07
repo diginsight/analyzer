@@ -8,7 +8,7 @@ public interface IAgentAnalysisService : IAnalysisService, IAsyncDisposable
 {
     Task<ExtendedAnalysisCoord> AnalyzeAsync(
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         EncodedStream definitionStream,
         IEnumerable<InputPayload> inputPayloads,

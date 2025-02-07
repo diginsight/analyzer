@@ -1,3 +1,8 @@
-﻿namespace Diginsight.Analyzer.Entities;
+﻿using Newtonsoft.Json.Linq;
 
-public interface IAnalysisContext : IAnalysisContextRO, IExecutionContext;
+namespace Diginsight.Analyzer.Entities;
+
+public interface IAnalysisContext : IAnalysisContextRO, IExecutionContext
+{
+    JObject Progress { get; }
+}

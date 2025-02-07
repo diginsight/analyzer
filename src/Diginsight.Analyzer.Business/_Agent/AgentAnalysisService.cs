@@ -48,7 +48,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
 
     public async Task<ExtendedAnalysisCoord> AnalyzeAsync(
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         EncodedStream definitionStream,
         IEnumerable<InputPayload> inputPayloads,

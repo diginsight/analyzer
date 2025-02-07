@@ -138,11 +138,10 @@ internal sealed partial class InternalAnalysisService : IInternalAnalysisService
             return false;
         }
 
-        IEnumerable<StepInstance> steps = stepExecutorProtos.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
         foreach (IAnalyzerStep analyzerStep in stepExecutorProtos.Select(static x => x.Step))
         {
             LogMessages.CheckingForConflicts(logger, analyzerStep.Meta.InternalName);
-            if (await analyzerStep.HasConflictAsync(steps, analysisLease, cancellationToken))
+            if (await analyzerStep.HasConflictAsync(stepExecutorProtos, analysisLease, cancellationToken))
             {
                 return true;
             }

@@ -27,7 +27,7 @@ internal sealed class AnalysisContextDocument
         Attempt = attempt;
     }
 
-    public static AnalysisContextDocument Create(IAnalysisContext analysisContext)
+    public static AnalysisContextDocument Create(IAnalysisContextRO analysisContext)
     {
         (ExecutionKind executionKind, Guid executionId) = analysisContext.ExecutionCoord;
         (Guid analysisId, int attempt) = analysisContext.AnalysisCoord;
@@ -37,8 +37,8 @@ internal sealed class AnalysisContextDocument
         JsonSerializer serializer = JsonSerializer.CreateDefault();
 
         JObject rawSource = JObject.FromObject(analysisContext, serializer);
-        rawSource.Property(nameof(IAnalysisContext.ExecutionCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
-        rawSource.Property(nameof(IAnalysisContext.AnalysisCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
+        rawSource.Property(nameof(IAnalysisContextRO.ExecutionCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
+        rawSource.Property(nameof(IAnalysisContextRO.AnalysisCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
 
         using (JsonReader reader = rawSource.CreateReader())
         {

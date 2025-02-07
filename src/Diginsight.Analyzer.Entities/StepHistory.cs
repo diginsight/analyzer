@@ -34,7 +34,7 @@ public sealed class StepHistory : StepInstance, IStepHistory, ITimeBoundWithPhas
 
     public Exception? Reason => skippableFailable.Reason;
 
-    public StepHistory(StepInstance stepInstance)
+    public StepHistory(IStepInstance stepInstance)
         : this(stepInstance.Meta, stepInstance.Input, false, false, null) { }
 
     [JsonConstructor]

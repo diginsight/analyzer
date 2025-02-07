@@ -18,7 +18,7 @@ public interface IAnalysisContextRO : IExecutionContextRO, ITimeBoundRO
 
     IEnumerable<IStepHistoryRO> Steps { get; }
 
-    JObject Progress { get; }
+    JObject ProgressRO { get; }
 
     IStepHistoryRO GetStep(string internalName);
 }

@@ -43,7 +43,7 @@ public abstract class AnalysisController : ControllerBase
 
     protected async Task<IActionResult> AnalyzeAsync<T>(
         bool wait,
-        Func<GlobalMeta, IEnumerable<StepInstance>, JObject, EncodedStream, IEnumerable<InputPayload>, CancellationToken, Task<T>> coreAnalyzeAsync,
+        Func<GlobalMeta, IEnumerable<IStepInstance>, JObject, EncodedStream, IEnumerable<InputPayload>, CancellationToken, Task<T>> coreAnalyzeAsync,
         CancellationToken cancellationToken
     )
         where T : IExecutionCoord
@@ -387,7 +387,7 @@ public abstract class AnalysisController : ControllerBase
             this.input = input;
         }
 
-        public StepInstance ToInstance()
+        public IStepInstance ToInstance()
         {
             return new StepInstance(
                 new StepMeta(

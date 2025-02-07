@@ -4,11 +4,11 @@ namespace Diginsight.Analyzer.Business;
 
 public interface IOrchestratorAnalysisContextFactory
 {
-    IAnalysisContext Make(
+    IAnalysisContextRO Make(
         Guid executionId,
         AnalysisCoord analysisCoord,
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         string agentPool
     );

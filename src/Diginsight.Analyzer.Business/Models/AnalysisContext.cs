@@ -25,6 +25,8 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
 
     public JObject Progress { get; }
 
+    JObject IAnalysisContextRO.ProgressRO => new (Progress);
+
     public DateTime? QueuedAt { get; }
 
     [JsonIgnore]
@@ -43,7 +45,7 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
         Guid executionId,
         AnalysisCoord analysisCoord,
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         DateTime? queuedAt,
         string agentPool,
@@ -54,7 +56,7 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
     {
         AnalysisCoord = analysisCoord;
         GlobalMeta = globalMeta;
-        this.steps = steps.Select(static x => new StepHistory(x)).ToArray();
+        this.steps = steps.Select(static x => x as StepHistory ?? new StepHistory(x)).ToArray();
         Progress = progress;
         stepIndexes = this.steps
             .Select(static (x, i) => (x.Meta.InternalName, Index: i))

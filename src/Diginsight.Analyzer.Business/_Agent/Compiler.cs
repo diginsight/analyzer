@@ -64,7 +64,7 @@ internal sealed class Compiler : ICompiler
             IDictionary<string, object> arguments = new Dictionary<string, object>()
             {
                 [ConditionLibrary.ContextVarName] = new AnalysisContextView(analysisContext),
-                [ConditionLibrary.ProgressVarName] = JTokenToVal(analysisContext.Progress),
+                [ConditionLibrary.ProgressVarName] = JTokenToVal(analysisContext.ProgressRO),
                 [ConditionLibrary.StepVarName] = new StepHistoryView(stepHistory),
             };
 

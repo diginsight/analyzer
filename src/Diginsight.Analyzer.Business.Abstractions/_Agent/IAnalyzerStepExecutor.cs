@@ -2,11 +2,11 @@
 
 namespace Diginsight.Analyzer.Business;
 
-public interface IAnalyzerStepExecutor
+public interface IAnalyzerStepExecutor : IStepInstance
 {
-    StepMeta Meta { get; }
-
     JObject RawInput { get; }
+
+    JObject IStepInstance.Input => RawInput;
 
     object ValidatedInput { get; }
 

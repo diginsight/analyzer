@@ -12,11 +12,11 @@ internal sealed class OrchestratorAnalysisContextFactory : IOrchestratorAnalysis
         this.timeProvider = timeProvider;
     }
 
-    public IAnalysisContext Make(
+    public IAnalysisContextRO Make(
         Guid executionId,
         AnalysisCoord analysisCoord,
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         string agentPool
     )

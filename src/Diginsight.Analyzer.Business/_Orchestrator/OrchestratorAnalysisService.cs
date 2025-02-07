@@ -49,7 +49,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
 
     public async Task<QueuableAnalysisCoord> AnalyzeAsync(
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         EncodedStream definitionStream,
         IEnumerable<InputPayload> inputPayloads,
@@ -152,8 +152,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         catch (AnalysisException exception) when (ShouldQueue(exception))
         {
             coord = makeQueuedCoord();
-            IEnumerable<StepInstance> steps = stepExecutorProtos.Select(static x => new StepInstance(x.Step.Meta, x.Input)).ToArray();
-            executionId = await QueueAsync(agentPool, coord, globalMeta, steps, progress, definitionStream, inputPayloads, cancellationToken);
+            executionId = await QueueAsync(agentPool, coord, globalMeta, stepExecutorProtos, progress, definitionStream, inputPayloads, cancellationToken);
             queued = true;
         }
 
@@ -278,7 +277,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         string agentPool,
         AnalysisCoord coord,
         GlobalMeta globalMeta,
-        IEnumerable<StepInstance> steps,
+        IEnumerable<IStepInstance> steps,
         JObject progress,
         EncodedStream? definitionStream,
         IEnumerable<InputPayload> inputPayloads,
@@ -289,7 +288,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
 
         try
         {
-            IAnalysisContext analysisContext = analysisContextFactory.Make(executionId, coord, globalMeta, steps, progress, agentPool);
+            IAnalysisContextRO analysisContext = analysisContextFactory.Make(executionId, coord, globalMeta, steps, progress, agentPool);
             await infoRepository.InsertAsync(analysisContext);
 
             if (definitionStream is not null)
