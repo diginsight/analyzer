@@ -218,7 +218,7 @@ internal sealed partial class AgentExecutionService : IAgentExecutionService
             await leaseService.AcquireExecutionAsync(executionId, fillLease, hasConflictAsync, cancellationToken);
 
             current = (
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, applicationLifetime.ApplicationStopping),
+                CancellationTokenSource.CreateLinkedTokenSource(applicationLifetime.ApplicationStopping),
                 new ExecutionCoord(kind, executionId),
                 detail,
                 new ManualResetEventSlim()

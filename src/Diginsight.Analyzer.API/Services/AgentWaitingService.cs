@@ -18,14 +18,13 @@ internal sealed class AgentWaitingService : IWaitingService
         return Task.Run(() => GetMre(executionId).Wait(cancellationToken), cancellationToken);
     }
 
-    private ManualResetEventSlim GetMre(Guid executionId) => memoryCache.Get<ManualResetEventSlim>(executionId)!;
+    private ManualResetEventSlim GetMre(Guid executionId) => memoryCache.GetOrCreate(executionId, static _ => new ManualResetEventSlim())!;
 
-    private void SetMre(Guid executionId, ManualResetEventSlim mre, TimeSpan? absoluteExpiration = null)
+    private void SetMre(Guid executionId)
     {
-        if (absoluteExpiration is { } absoluteExpiration0)
-            memoryCache.Set(executionId, mre, absoluteExpiration0);
-        else
-            memoryCache.Set(executionId, mre);
+        ManualResetEventSlim mre = memoryCache.Get<ManualResetEventSlim>(executionId)!;
+        mre.Set();
+        memoryCache.Set(executionId, mre, TimeSpan.FromMinutes(5));
     }
 
     public sealed class EventSender : IEventSender
@@ -43,22 +42,13 @@ internal sealed class AgentWaitingService : IWaitingService
             {
                 case EventKind.AnalysisStarted:
                 {
-                    Guid executionId = @event.ExecutionCoord.Id;
-
-                    ManualResetEventSlim mre = new ();
-                    owner.SetMre(executionId, mre);
-
+                    _ = owner.GetMre(@event.ExecutionCoord.Id);
                     break;
                 }
 
                 case EventKind.AnalysisFinished:
                 {
-                    Guid executionId = @event.ExecutionCoord.Id;
-
-                    ManualResetEventSlim mre = owner.GetMre(executionId)!;
-                    mre.Set();
-                    owner.SetMre(executionId, mre, TimeSpan.FromMinutes(5));
-
+                    owner.SetMre(@event.ExecutionCoord.Id);
                     break;
                 }
             }

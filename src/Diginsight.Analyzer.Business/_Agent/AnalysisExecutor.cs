@@ -218,10 +218,8 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         int totalStepCount = missingStepExecutors.Count;
         ISet<string> completedStepNames = new HashSet<string>();
 
-        CancellationTokenSource localCts = new ();
-        CancellationToken localCt = CancellationTokenSource
-            .CreateLinkedTokenSource(cancellationToken, localCts.Token)
-            .Token;
+        CancellationTokenSource localCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        CancellationToken localCancellationToken = localCancellationTokenSource.Token;
 
         Enqueue();
 
@@ -231,7 +229,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
         }
         finally
         {
-            await localCts.CancelAsync().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            await localCancellationTokenSource.CancelAsync().ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
 
         void Enqueue()
@@ -245,7 +243,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
             IReadOnlyList<IAnalyzerStepExecutor> localStepExecutors;
             lock (@lock)
             {
-                if (localCt.IsCancellationRequested || completedStepNames.Count == totalStepCount)
+                if (localCancellationToken.IsCancellationRequested || completedStepNames.Count == totalStepCount)
                 {
                     tcs.TrySetResult();
                     return;
@@ -275,11 +273,11 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                         RateLimitLease lease;
                         try
                         {
-                            lease = await rateLimiter.AcquireAsync(cancellationToken: localCt);
+                            lease = await rateLimiter.AcquireAsync(cancellationToken: localCancellationToken);
                         }
-                        catch (OperationCanceledException exception) when (exception.CancellationToken == localCt)
+                        catch (OperationCanceledException exception) when (exception.CancellationToken == localCancellationToken)
                         {
-                            tcs.TrySetCanceled(localCt);
+                            tcs.TrySetCanceled(localCancellationToken);
                             return;
                         }
                         catch (Exception exception)
@@ -305,7 +303,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                                     analysisContext,
                                     stepExecutor,
                                     eventSenders,
-                                    localCt
+                                    localCancellationToken
                                 );
 
                                 lock (@lock)
@@ -333,9 +331,9 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                                     }
                                 }
                             }
-                            catch (OperationCanceledException exception) when (exception.CancellationToken == localCt)
+                            catch (OperationCanceledException exception) when (exception.CancellationToken == localCancellationToken)
                             {
-                                tcs.TrySetCanceled(localCt);
+                                tcs.TrySetCanceled(localCancellationToken);
                             }
                             catch (Exception exception)
                             {
@@ -344,7 +342,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                             }
                         }
                     },
-                    localCt
+                    localCancellationToken
                 );
             }
         }

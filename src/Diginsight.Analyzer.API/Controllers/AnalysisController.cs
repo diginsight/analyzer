@@ -134,28 +134,36 @@ public abstract class AnalysisController : ControllerBase
     }
 
     [HttpDelete("execution/{executionId:guid}")]
-    public Task<IActionResult> AbortExecution([FromRoute] Guid executionId)
+    public Task<IActionResult> AbortExecution([FromRoute] Guid executionId, [FromQuery] bool wait = false)
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortExecutionAE(executionId, cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchExecution, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchExecution, wait, cancellationToken);
     }
 
     [HttpDelete("analysis/{analysisId:guid}/attempt/{attempt:int}")]
-    public Task<IActionResult> AbortAnalysis([FromRoute] Guid analysisId, [FromRoute] int attempt)
+    public Task<IActionResult> AbortAnalysis([FromRoute] Guid analysisId, [FromRoute] int attempt, [FromQuery] bool wait = false)
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortAnalysisAE(new AnalysisCoord(analysisId, attempt), cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, wait, cancellationToken);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected static async Task<IActionResult> AbortAsync(
-        IAsyncEnumerable<ExtendedAnalysisCoord> coords, Exception? exception, CancellationToken cancellationToken
+        IAsyncEnumerable<ExtendedAnalysisCoord> coords, Exception? exception, bool wait, CancellationToken cancellationToken
     )
     {
         ExtendedAnalysisCoord[] coords0 = await coords.ToArrayAsync(cancellationToken);
-        return exception is null || coords0.Length > 0 ? new AcceptedResult((string?)null, coords0) : throw exception;
+
+        if (wait)
+        {
+            throw new NotImplementedException();
+        }
+        else
+        {
+            return exception is null || coords0.Length > 0 ? new AcceptedResult((string?)null, coords0) : throw exception;
+        }
     }
 
     #region Input parsing

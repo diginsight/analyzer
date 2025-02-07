@@ -3,7 +3,6 @@ using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Repositories.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Diginsight.Analyzer.API.Controllers;
 

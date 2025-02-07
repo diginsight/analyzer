@@ -59,7 +59,7 @@ public class AgentAnalysisController : AnalysisController
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortExecutionsAE(cancellationToken);
-        return AbortAsync(coords, null, cancellationToken);
+        return AbortAsync(coords, null, false, cancellationToken);
     }
 
     [HttpDelete("analysis/{analysisId:guid}")]
@@ -67,6 +67,6 @@ public class AgentAnalysisController : AnalysisController
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortAnalysesAE(analysisId, cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, false, cancellationToken);
     }
 }
