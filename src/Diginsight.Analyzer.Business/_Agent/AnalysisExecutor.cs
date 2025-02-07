@@ -49,7 +49,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
     {
         IAgentAnalysisContext analysisContext = analysisContextFactory.Make(executionId, coord, globalMeta, stepExecutors, progress, queuedAt);
 
-        DateTime startedAt = analysisContext.StartedAt;
+        DateTime startedAt = analysisContext.StartedAt!.Value;
         JObject eventMeta = globalMeta.EventMeta ?? new JObject();
         ExecutionCoord executionCoord = new (ExecutionKind.Analysis, executionId);
 

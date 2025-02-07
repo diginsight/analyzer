@@ -26,7 +26,7 @@ internal sealed class AgentAnalysisContextFactory : IAgentAnalysisContextFactory
         DateTime? queuedAt
     )
     {
-        return new AnalysisContext(
+        return new AgentAnalysisContext(
             executionId,
             coord,
             globalMeta,

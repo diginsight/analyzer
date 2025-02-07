@@ -1,19 +1,11 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business.Models;
 
-internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
+internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisContext
 {
     private readonly IReadOnlyList<StepHistory> steps;
     private readonly IReadOnlyDictionary<string, int> stepIndexes;
-
-    [JsonProperty]
-    private readonly DateTime? startedAt;
-
-    // ReSharper disable once ReplaceWithFieldKeyword
-    [JsonProperty]
-    private readonly string? agentName;
 
     public AnalysisCoord AnalysisCoord { get; }
 
@@ -29,19 +21,17 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
 
     public DateTime? QueuedAt { get; }
 
-    [JsonIgnore]
-    public DateTime StartedAt => startedAt ?? throw new InvalidOperationException("Not started");
+    public DateTime? StartedAt { get; }
 
     public DateTime? FinishedAt { get; set; }
 
-    [JsonIgnore]
-    public string AgentName => agentName ?? throw new InvalidOperationException("Not started");
+    public string? AgentName { get; }
 
     public string AgentPool { get; }
 
     public TimeBoundStatus Status { get; set; }
 
-    public AnalysisContext(
+    public AgentAnalysisContext(
         Guid executionId,
         AnalysisCoord analysisCoord,
         GlobalMeta globalMeta,
@@ -49,8 +39,8 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
         JObject progress,
         DateTime? queuedAt,
         string agentPool,
-        DateTime? startedAt = null,
-        string? agentName = null
+        DateTime startedAt,
+        string agentName
     )
         : base(new ExecutionCoord(ExecutionKind.Analysis, executionId))
     {
@@ -63,13 +53,13 @@ internal sealed class AnalysisContext : ExecutionContext, IAgentAnalysisContext
             .ToDictionary(static x => x.InternalName, static x => x.Index);
         QueuedAt = queuedAt;
         AgentPool = agentPool;
-        this.startedAt = startedAt;
-        this.agentName = agentName;
+        StartedAt = startedAt;
+        AgentName = agentName;
     }
 
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];
 
     IStepHistoryRO IAnalysisContextRO.GetStep(string internalName) => GetStep(internalName);
 
-    public override bool IsNotStarted() => startedAt is null;
+    public override bool IsNotStarted() => false;
 }

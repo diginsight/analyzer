@@ -21,14 +21,8 @@ internal sealed class OrchestratorAnalysisContextFactory : IOrchestratorAnalysis
         string agentPool
     )
     {
-        return new AnalysisContext(
-            executionId,
-            analysisCoord,
-            globalMeta,
-            steps,
-            progress,
-            timeProvider.GetUtcNow().UtcDateTime,
-            agentPool
+        return new OrchestratorAnalysisContext(
+            executionId, analysisCoord, globalMeta, steps, progress, timeProvider.GetUtcNow().UtcDateTime, agentPool
         );
     }
 }

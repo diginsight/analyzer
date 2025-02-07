@@ -57,13 +57,13 @@ internal sealed class PlaceholderReplacer : IPlaceholderReplacer
 
         public int Attempt => analysisContext.AnalysisCoord.Attempt;
 
-        public string AgentName => analysisContext.AgentName;
+        public string? AgentName => analysisContext.AgentName;
 
         public string AgentPool => analysisContext.AgentPool;
 
         public DateTime? QueuedAt => analysisContext.QueuedAt;
 
-        public DateTime StartedAt => analysisContext.StartedAt;
+        public DateTime? StartedAt => analysisContext.StartedAt;
 
         public TimeBoundStatus Status => analysisContext.Status;
 

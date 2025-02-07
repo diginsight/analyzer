@@ -6,13 +6,13 @@ public interface IAnalysisContextRO : IExecutionContextRO, ITimeBoundRO
 {
     AnalysisCoord AnalysisCoord { get; }
 
-    string AgentName { get; }
+    string? AgentName { get; }
 
     string AgentPool { get; }
 
     DateTime? QueuedAt { get; }
 
-    DateTime StartedAt { get; }
+    DateTime? StartedAt { get; }
 
     GlobalMeta GlobalMeta { get; }
 

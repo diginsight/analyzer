@@ -204,13 +204,13 @@ internal sealed class Compiler : ICompiler
 
         public int Attempt => analysisContext.AnalysisCoord.Attempt;
 
-        public string AgentName => analysisContext.AgentName;
+        public string? AgentName => analysisContext.AgentName;
 
         public string AgentPool => analysisContext.AgentPool;
 
         //public DateTime? QueuedAt => analysisContext.QueuedAt;
 
-        //public DateTime StartedAt => analysisContext.StartedAt;
+        //public DateTime? StartedAt => analysisContext.StartedAt;
 
         [field: MaybeNull]
         public IDictionary<string, StepHistoryView> Steps =>
