@@ -67,6 +67,6 @@ public class AgentAnalysisController : AnalysisController
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortAnalysesAE(analysisId, cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, false, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchActiveAnalysis, false, cancellationToken);
     }
 }

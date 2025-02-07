@@ -138,7 +138,7 @@ public abstract class AnalysisController : ControllerBase
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortExecutionAE(executionId, cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchExecution, wait, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchActiveExecution, wait, cancellationToken);
     }
 
     [HttpDelete("analysis/{analysisId:guid}/attempt/{attempt:int}")]
@@ -146,11 +146,11 @@ public abstract class AnalysisController : ControllerBase
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortAnalysisAE(new AnalysisCoord(analysisId, attempt), cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, wait, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchActiveAnalysis, wait, cancellationToken);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected static async Task<IActionResult> AbortAsync(
+    protected async Task<IActionResult> AbortAsync(
         IAsyncEnumerable<ExtendedAnalysisCoord> coords, Exception? exception, bool wait, CancellationToken cancellationToken
     )
     {
@@ -158,11 +158,15 @@ public abstract class AnalysisController : ControllerBase
 
         if (wait)
         {
-            throw new NotImplementedException();
+            if (coords0 is not [ IExecutionCoord coord, .. ])
+                throw exception!;
+
+            await waitingService.WaitAsync(coord.Id, cancellationToken);
+            return Ok(coords0);
         }
         else
         {
-            return exception is null || coords0.Length > 0 ? new AcceptedResult((string?)null, coords0) : throw exception;
+            return exception is null || coords0.Length > 0 ? Accepted(coords0) : throw exception;
         }
     }
 

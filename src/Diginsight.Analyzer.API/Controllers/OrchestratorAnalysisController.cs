@@ -81,6 +81,6 @@ public class OrchestratorAnalysisController : AnalysisController
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
         IAsyncEnumerable<ExtendedAnalysisCoord> coords = analysisService.AbortAnalysesAE(analysisId, selection, cancellationToken);
-        return AbortAsync(coords, AnalysisExceptions.NoSuchAnalysis, false, cancellationToken);
+        return AbortAsync(coords, AnalysisExceptions.NoSuchActiveAnalysis, false, cancellationToken);
     }
 }

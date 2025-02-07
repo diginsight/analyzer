@@ -275,9 +275,14 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                         {
                             lease = await rateLimiter.AcquireAsync(cancellationToken: localCancellationToken);
                         }
+                        catch (OperationCanceledException exception) when (exception.CancellationToken == cancellationToken)
+                        {
+                            tcs.TrySetCanceled(cancellationToken);
+                            return;
+                        }
                         catch (OperationCanceledException exception) when (exception.CancellationToken == localCancellationToken)
                         {
-                            tcs.TrySetCanceled(localCancellationToken);
+                            tcs.TrySetResult();
                             return;
                         }
                         catch (Exception exception)
@@ -331,9 +336,13 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                                     }
                                 }
                             }
+                            catch (OperationCanceledException exception) when (exception.CancellationToken == cancellationToken)
+                            {
+                                tcs.TrySetCanceled(cancellationToken);
+                            }
                             catch (OperationCanceledException exception) when (exception.CancellationToken == localCancellationToken)
                             {
-                                tcs.TrySetCanceled(localCancellationToken);
+                                tcs.TrySetResult();
                             }
                             catch (Exception exception)
                             {

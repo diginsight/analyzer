@@ -13,6 +13,12 @@ public static class AnalysisExceptions
     public static readonly AnalysisException NoSuchAnalysis =
         new ("No such analysis", HttpStatusCode.NotFound, nameof(NoSuchAnalysis));
 
+    public static readonly AnalysisException NoSuchActiveExecution =
+        new ("No such active execution", HttpStatusCode.NotFound, nameof(NoSuchActiveExecution));
+
+    public static readonly AnalysisException NoSuchActiveAnalysis =
+        new ("No such active analysis", HttpStatusCode.NotFound, nameof(NoSuchActiveAnalysis));
+
     public static AnalysisException InputNotPositive(string name) =>
         new ($"Input `{name}` must be positive", HttpStatusCode.BadRequest, nameof(InputNotPositive));
 
