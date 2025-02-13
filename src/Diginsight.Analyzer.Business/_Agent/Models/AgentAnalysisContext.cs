@@ -60,6 +60,4 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];
 
     IStepHistoryRO IAnalysisContextRO.GetStep(string internalName) => GetStep(internalName);
-
-    public override bool IsNotStarted() => false;
 }

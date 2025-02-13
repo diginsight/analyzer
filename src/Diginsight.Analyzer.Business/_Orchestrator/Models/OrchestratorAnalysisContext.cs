@@ -59,7 +59,5 @@ internal sealed class OrchestratorAnalysisContext : IAnalysisContextRO
 
     IStepHistoryRO IAnalysisContextRO.GetStep(string internalName) => GetStep(internalName);
 
-    public bool IsNotStarted() => true;
-
     public bool IsSucceeded() => true;
 }

@@ -8,6 +8,4 @@ internal abstract class ExecutionContext : Failable, IExecutionContext
     {
         ExecutionCoord = executionCoord;
     }
-
-    public abstract bool IsNotStarted();
 }

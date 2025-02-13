@@ -3,6 +3,4 @@
 public interface IExecutionContextRO : IFailableRO
 {
     ExecutionCoord ExecutionCoord { get; }
-
-    bool IsNotStarted();
 }
