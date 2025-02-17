@@ -38,18 +38,18 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
 
     public async Task InsertAsync(IAnalysisContextRO analysisContext)
     {
-        await DeleteCoreAsync(analysisContext.ExecutionCoord.Id);
-        await UpsertCoreAsync(analysisContext);
+        await CoreDeleteAsync(analysisContext.ExecutionCoord.Id);
+        await CoreUpsertAsync(analysisContext);
     }
 
     public Task UpsertAsync(IAnalysisContextRO analysisContext)
     {
-        return UpsertCoreAsync(analysisContext);
+        return CoreUpsertAsync(analysisContext);
     }
 
     public Task DeleteAsync(Guid executionId)
     {
-        return DeleteCoreAsync(executionId);
+        return CoreDeleteAsync(executionId);
     }
 
     public IDisposable? StartTimedProgressFlush(IAnalysisContextRO analysisContext)
@@ -196,7 +196,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         }
     }
 
-    private async Task DeleteCoreAsync(Guid executionId)
+    private async Task CoreDeleteAsync(Guid executionId)
     {
         LogMessages.DeletingAnalysisContext(logger, executionId);
 
@@ -208,7 +208,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         catch (CosmosException exception) when (exception.StatusCode == HttpStatusCode.NotFound) { }
     }
 
-    private async Task UpsertCoreAsync(IAnalysisContextRO analysisContext)
+    private async Task CoreUpsertAsync(IAnalysisContextRO analysisContext)
     {
         (Guid analysisId, int attempt) = analysisContext.AnalysisCoord;
         LogMessages.UpsertingAnalysisContext(logger, analysisId, attempt);

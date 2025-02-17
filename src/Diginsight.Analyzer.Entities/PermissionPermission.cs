@@ -15,6 +15,7 @@ public readonly struct PermissionPermission : IPermission<PermissionPermission>
             [nameof(Manage)] = Manage,
         };
 
+    // ReSharper disable once ReplaceWithFieldKeyword
     private readonly string? name;
 
     string IPermission<PermissionPermission>.Name => name ?? nameof(None);

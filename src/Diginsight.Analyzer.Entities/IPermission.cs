@@ -2,12 +2,14 @@
 
 namespace Diginsight.Analyzer.Entities;
 
-public interface IPermission<TPermission>
+public interface IPermission<TPermission> : IEquatable<TPermission>
     where TPermission : IPermission<TPermission>
 {
     static abstract IReadOnlyDictionary<string, TPermission> Values { get; }
 
     string Name { get; }
+
+    bool IEquatable<TPermission>.Equals(TPermission? other) => Name == other?.Name;
 
     protected sealed class Converter : JsonConverter
     {

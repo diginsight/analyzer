@@ -2,25 +2,23 @@
 
 namespace Diginsight.Analyzer.Entities;
 
-public readonly struct AnalysisPermissionAssignment : IPermissionAssignment
+public readonly struct AnalysisPermissionAssignment : IPermissionAssignment<AnalysisPermission, Guid?>
 {
+    public PermissionKind Kind => PermissionKind.Analysis;
+
     public AnalysisPermission Permission { get; }
-
-    public Guid? AnalysisId { get; }
-
-    public Guid? PrincipalId { get; }
-
-    PermissionSubjectKind IPermissionAssignment.Kind => PermissionSubjectKind.Analysis;
 
     object IPermissionAssignment.Permission => Permission;
 
-    object? IPermissionAssignment.SubjectId => AnalysisId;
+    public Guid? SubjectId { get; }
+
+    public Guid? PrincipalId { get; }
 
     [JsonConstructor]
-    public AnalysisPermissionAssignment(AnalysisPermission permission, Guid? analysisId, Guid? principalId)
+    public AnalysisPermissionAssignment(AnalysisPermission permission, Guid? subjectId, Guid? principalId)
     {
         Permission = permission;
-        AnalysisId = analysisId;
+        SubjectId = subjectId;
         PrincipalId = principalId;
     }
 }

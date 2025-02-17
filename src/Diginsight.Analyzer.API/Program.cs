@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using System.Runtime.CompilerServices;
 using AzureCliCredential = Azure.Identity.AzureCliCredential;
 using GlobalExceptionFilter = Diginsight.Analyzer.API.Mvc.GlobalExceptionFilter;
 
@@ -20,14 +19,6 @@ namespace Diginsight.Analyzer.API;
 
 internal static partial class Program
 {
-    [ModuleInitializer]
-    internal static void InitializeModule()
-    {
-        JsonSerializerSettings settings = JsonConvert.DefaultSettings?.Invoke() ?? new JsonSerializerSettings();
-        JsonSerializationGlobals.Adjust(settings);
-        JsonConvert.DefaultSettings = () => settings;
-    }
-
     private static async Task Main(string[] args)
     {
         AppContext.SetSwitch("Azure.Experimental.EnableActivitySource", true);
@@ -93,7 +84,8 @@ internal static partial class Program
 
         services
             .AddRepositories(configuration, credential)
-            .AddBusiness(configuration);
+            .AddBusiness(configuration)
+            .AddSingleton<IPermissionService, PermissionService>();
 
         if (isAgent)
         {
@@ -130,7 +122,7 @@ internal static partial class Program
                 }
             )
             .ConfigureApplicationPartManager(static apm => { apm.FeatureProviders.Add(new FlavorAwareControllerFeatureProvider()); })
-            .AddNewtonsoftJson(static options => { JsonSerializationGlobals.Adjust(options.SerializerSettings); });
+            .AddNewtonsoftJson(static options => { ApiJsonSerialization.Adjust(options.SerializerSettings); });
 
         services.AddSingleton(static sp => JsonSerializer.Create(sp.GetRequiredService<IOptions<MvcNewtonsoftJsonOptions>>().Value.SerializerSettings));
 
