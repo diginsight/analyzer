@@ -1,15 +1,22 @@
 ﻿using Newtonsoft.Json;
 
-namespace Diginsight.Analyzer.Entities;
+namespace Diginsight.Analyzer.Entities.Permissions;
 
-public interface IPermission<TPermission> : IEquatable<TPermission>
-    where TPermission : IPermission<TPermission>
+public interface IPermission
+{
+    string Name { get; }
+}
+
+public interface IPermission<TPermission> : IPermission, IEquatable<TPermission>
+    where TPermission : struct, IPermission<TPermission>
 {
     static abstract IReadOnlyDictionary<string, TPermission> Values { get; }
 
-    string Name { get; }
+    public static abstract bool operator ==(TPermission left, TPermission right);
 
-    bool IEquatable<TPermission>.Equals(TPermission? other) => Name == other?.Name;
+    public static abstract bool operator !=(TPermission left, TPermission right);
+
+    public static abstract bool operator >>(TPermission left, IPermission right);
 
     protected sealed class Converter : JsonConverter
     {

@@ -28,15 +28,6 @@
           "Microsoft.Extensions.Logging": "6.0.0"
         }
       },
-      "Microsoft.Graph": {
-        "type": "Direct",
-        "requested": "[5.*, )",
-        "resolved": "5.70.0",
-        "contentHash": "5WF5M4rakCk7qdo8hRyUGYNRDrQSop2e81kkmOU20DETwO84bEYwGEWKz7zxffWP6sZ9td3NLHWb325w8IfHhA==",
-        "dependencies": {
-          "Microsoft.Graph.Core": "3.2.3"
-        }
-      },
       "Microsoft.Identity.Web": {
         "type": "Direct",
         "requested": "[3.*, )",
@@ -593,6 +584,14 @@
         "type": "Transitive",
         "resolved": "9.0.2",
         "contentHash": "puBMtKe/wLuYa7H6docBkLlfec+h8L35DXqsDKKJgW0WY5oCwJ3cBJKcDaZchv6knAyqOMfsl6VUbaR++E5LXA=="
+      },
+      "Microsoft.Graph": {
+        "type": "Transitive",
+        "resolved": "5.70.0",
+        "contentHash": "5WF5M4rakCk7qdo8hRyUGYNRDrQSop2e81kkmOU20DETwO84bEYwGEWKz7zxffWP6sZ9td3NLHWb325w8IfHhA==",
+        "dependencies": {
+          "Microsoft.Graph.Core": "3.2.3"
+        }
       },
       "Microsoft.Graph.Core": {
         "type": "Transitive",
@@ -1670,7 +1669,8 @@
         "dependencies": {
           "Azure.Storage.Blobs": "[12.*, )",
           "Diginsight.Analyzer.Repositories.Abstractions": "[1.0.0, )",
-          "Microsoft.Azure.Cosmos": "[3.*, )"
+          "Microsoft.Azure.Cosmos": "[3.*, )",
+          "Microsoft.Graph": "[5.*, )"
         }
       },
       "diginsight.analyzer.repositories.abstractions": {

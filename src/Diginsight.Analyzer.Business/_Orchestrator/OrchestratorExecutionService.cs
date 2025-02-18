@@ -170,7 +170,7 @@ internal sealed partial class OrchestratorExecutionService : IOrchestratorExecut
                 continue;
             }
             catch (AnalysisException exception)
-                when (isUnique && exception is { Label: nameof(AnalysisExceptions.DownstreamException), Parameters: [ HttpStatusCode.NotFound, .. ] })
+                when (isUnique && exception is { Label: nameof(AnalysisExceptions.AgentException), Parameters: [ HttpStatusCode.NotFound, .. ] })
             {
                 continue;
             }

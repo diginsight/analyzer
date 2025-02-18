@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Common;
+using Diginsight.Analyzer.Entities.Permissions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System.Collections.Concurrent;

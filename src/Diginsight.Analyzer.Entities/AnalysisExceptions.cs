@@ -25,14 +25,14 @@ public static class AnalysisExceptions
     public static AnalysisException InputGreaterThan(string name, double value) =>
         new ($"Input `{name}` must be less than or equal to {value:R}", HttpStatusCode.BadRequest, nameof(InputGreaterThan));
 
-    public static AnalysisException DownstreamException(string message, AnalysisException? innerException = null) =>
-        new (message, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
+    public static AnalysisException AgentException(string message, AnalysisException? innerException = null) =>
+        new (message, HttpStatusCode.BadGateway, nameof(AgentException), innerException);
 
-    public static AnalysisException DownstreamException(string messageFormat, IReadOnlyList<object?> parameters, AnalysisException? innerException = null) =>
-        new (messageFormat, parameters, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
+    public static AnalysisException AgentException(string messageFormat, IReadOnlyList<object?> parameters, AnalysisException? innerException = null) =>
+        new (messageFormat, parameters, HttpStatusCode.BadGateway, nameof(AgentException), innerException);
 
-    public static AnalysisException DownstreamException(ref AnalysisException.InterpolatedStringHandler handler, AnalysisException? innerException = null) =>
-        new (ref handler, HttpStatusCode.BadGateway, nameof(DownstreamException), innerException);
+    public static AnalysisException AgentException(ref AnalysisException.InterpolatedStringHandler handler, AnalysisException? innerException = null) =>
+        new (ref handler, HttpStatusCode.BadGateway, nameof(AgentException), innerException);
 
     public static AnalysisException ConflictingExecution(ExecutionKind kind, Guid executionId) =>
         new ($"Conflicting execution: {kind:G} {executionId:D}", HttpStatusCode.Conflict, nameof(ConflictingExecution));

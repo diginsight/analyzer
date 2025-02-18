@@ -131,13 +131,13 @@ internal sealed class AgentClient : IAgentClient
 
             if (exceptionView is null)
             {
-                throw AnalysisExceptions.DownstreamException($"Received status code {statusCode} invoking agent");
+                throw AnalysisExceptions.AgentException($"Received status code {statusCode} invoking agent");
             }
 
             string message = exceptionView.Message;
             if (exceptionView.Label is { } label)
             {
-                throw AnalysisExceptions.DownstreamException(
+                throw AnalysisExceptions.AgentException(
                     "Received status code {0} and label {2} invoking agent: {1}",
                     [ statusCode, message, label ],
                     new AnalysisException(message, exceptionView.Parameters, statusCode, label)
@@ -145,7 +145,7 @@ internal sealed class AgentClient : IAgentClient
             }
             else
             {
-                throw AnalysisExceptions.DownstreamException($"Received status code {statusCode} invoking agent: {message}");
+                throw AnalysisExceptions.AgentException($"Received status code {statusCode} invoking agent: {message}");
             }
         }
         catch (TaskCanceledException exception) when (exception.InnerException is TimeoutException timeoutException)

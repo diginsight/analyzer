@@ -48,6 +48,7 @@ public static class RepositoriesExtensions
         services
             .AddSingleton<IAnalysisInfoRepository, AnalysisInfoRepository>()
             .AddSingleton<IPermissionAssignmentRepository, PermissionAssignmentRepository>()
+            .AddSingleton<IIdentityRepository, IdentityRepository>()
             .AddSingleton<ILeaseRepository, LeaseRepository>()
             .AddSingleton(
                 static sp => CreateFileRepository<IAnalysisFileRepository, BlobAnalysisFileRepository, PhysicalAnalysisFileRepository>(sp, "analyses")

@@ -1,4 +1,4 @@
-﻿using Diginsight.Analyzer.Entities;
+﻿using Diginsight.Analyzer.Entities.Permissions;
 using Diginsight.Analyzer.Repositories.Configurations;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -29,11 +29,11 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
         repositoriesOptions.Dispose();
     }
 
-    public async IAsyncEnumerable<IPermissionAssignment<TPermissions, TSubject?>> GetPermissionAssignmentsAE_C<TPermissions, TSubject>(
+    public async IAsyncEnumerable<IPermissionAssignment<TPermissions, TSubject>> GetPermissionAssignmentsAE<TPermissions, TSubject>(
         PermissionKind kind, IEnumerable<Guid> principalIds, IEnumerable<TSubject>? subjectIds, [EnumeratorCancellation] CancellationToken cancellationToken
     )
-        where TPermissions : IPermission<TPermissions>
-        where TSubject : class
+        where TPermissions : struct, IPermission<TPermissions>
+        where TSubject : struct, IEquatable<TSubject>
     {
         LogMessages.GettingPermissionAssignments(logger, kind, principalIds);
 
@@ -43,40 +43,13 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
 
         if (subjectIds is not null)
         {
-            queryable = queryable.Where(x => x.SubjectId == null || subjectIds.Contains(x.SubjectId));
+            queryable = queryable.Where(x => x.SubjectId == null || subjectIds.Contains(x.SubjectId!.Value));
         }
 
         using FeedIterator<IPermissionAssignment<TPermissions, TSubject>> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
             foreach (IPermissionAssignment<TPermissions, TSubject> assignment in await feedIterator.ReadNextAsync(cancellationToken))
-            {
-                yield return assignment;
-            }
-        }
-    }
-
-    public async IAsyncEnumerable<IPermissionAssignment<TPermissions, TSubject?>> GetPermissionAssignmentsAE_S<TPermissions, TSubject>(
-        PermissionKind kind, IEnumerable<Guid> principalIds, IEnumerable<TSubject>? subjectIds, [EnumeratorCancellation] CancellationToken cancellationToken
-    )
-        where TPermissions : IPermission<TPermissions>
-        where TSubject : struct
-    {
-        LogMessages.GettingPermissionAssignments(logger, kind, principalIds);
-
-        IQueryable<IPermissionAssignment<TPermissions, TSubject?>> queryable = permissionAssignmentContainer
-            .GetItemLinqQueryable<IPermissionAssignment<TPermissions, TSubject?>>()
-            .Where(x => x.PrincipalId == null || principalIds.Contains(x.PrincipalId!.Value));
-
-        if (subjectIds is not null)
-        {
-            queryable = queryable.Where(x => x.SubjectId == null || subjectIds.Contains(x.SubjectId!.Value));
-        }
-
-        using FeedIterator<IPermissionAssignment<TPermissions, TSubject?>> feedIterator = Log(queryable).ToFeedIterator();
-        while (feedIterator.HasMoreResults)
-        {
-            foreach (IPermissionAssignment<TPermissions, TSubject?> assignment in await feedIterator.ReadNextAsync(cancellationToken))
             {
                 yield return assignment;
             }

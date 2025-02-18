@@ -1,6 +1,7 @@
 ﻿using Azure.Core;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Graph;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Diginsight.Analyzer.Repositories.Configurations;
@@ -9,6 +10,7 @@ internal sealed class RepositoriesOptions : IRepositoriesOptions
 {
     private FileImplementation? fileImplementation;
     private CosmosClient? cosmosClient;
+    private GraphServiceClient? graphServiceClient;
 
     public string? FileImplementation { get; set; }
 
@@ -46,8 +48,11 @@ internal sealed class RepositoriesOptions : IRepositoriesOptions
         Credential
     );
 
+    GraphServiceClient IRepositoriesOptions.GraphServiceClient => graphServiceClient ??= new GraphServiceClient(Credential);
+
     void IDisposable.Dispose()
     {
         Interlocked.Exchange(ref cosmosClient, null)?.Dispose();
+        Interlocked.Exchange(ref graphServiceClient, null)?.Dispose();
     }
 }
