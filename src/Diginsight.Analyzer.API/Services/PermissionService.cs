@@ -5,10 +5,10 @@ using Diginsight.Analyzer.Repositories;
 using Microsoft.Identity.Web;
 using System.Net;
 using System.Security.Claims;
-using AnalysisPermissionAssignment = Diginsight.Analyzer.Entities.Permissions.AnalysisPermissionAssignment;
 
 namespace Diginsight.Analyzer.API.Services;
 
+// TODO Intercept 401 and 403 in orchestrator
 internal sealed class PermissionService : IPermissionService
 {
     private static readonly AnalysisException UnauthenticatedException =
@@ -19,6 +19,21 @@ internal sealed class PermissionService : IPermissionService
 
     private static readonly AnalysisException BadAzpacrClaimException =
         new ("Authentication method claim is missing or malformed", HttpStatusCode.Unauthorized, "BadAzpacrClaim");
+
+    private static readonly AnalysisException CannotStartAnalysisException =
+        new ("Cannot start a new analysis", HttpStatusCode.Forbidden, "CannotStartAnalysis");
+
+    private static readonly AnalysisException CannotReadAnalysisException =
+        new ("Cannot read such analysis", HttpStatusCode.Forbidden, "CannotReadAnalysis");
+
+    private static readonly AnalysisException CannotInvokeAnalysisException =
+        new ("Cannot invoke on such analysis", HttpStatusCode.Forbidden, "CannotInvokeAnalysis");
+
+    private static readonly AnalysisException CannotManagePermissionsException =
+        new ("Cannot manage permissions", HttpStatusCode.Forbidden, "CannotManagePermissions");
+
+    private static readonly AnalysisException CannotManagePluginsException =
+        new ("Cannot manage plugins", HttpStatusCode.Forbidden, "CannotManagePlugins");
 
     private static readonly object PrincipalIdsItemKey = new ();
     private static readonly object PermissionAssignmentEnablersItemKey = new ();
@@ -75,11 +90,11 @@ internal sealed class PermissionService : IPermissionService
         }
         if (rawPermissions.Contains("Analyses.Invoke"))
         {
-            enablers.Add(new AnalysisPermissionAssignmentEnabler(AnalysisPermission.ReadAndExecute));
+            enablers.Add(new AnalysisPermissionAssignmentEnabler(AnalysisPermission.ReadAndInvoke));
         }
         if (rawPermissions.Contains("Analyses.InvokeAll"))
         {
-            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.ReadAndExecute, null));
+            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.ReadAndInvoke, null));
         }
         if (rawPermissions.Contains("Permissions.ManageAll"))
         {
@@ -125,25 +140,53 @@ internal sealed class PermissionService : IPermissionService
         return principalIds;
     }
 
-    public async Task<bool> CanStartAnalysisAsync(CancellationToken cancellationToken)
+    public async Task CheckCanStartAnalysisAsync(CancellationToken cancellationToken)
     {
         static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanStart;
 
         IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
         if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<AnalysisPermission>>().Any(Matches))
         {
-            return true;
+            return;
         }
 
         IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
 
-        return await permissionAssignmentRepository
+        if (await permissionAssignmentRepository
             .GetPermissionAssignmentsAE<AnalysisPermission, Guid>(PermissionKind.Analysis, principalIds, null, cancellationToken)
             .Where(x => x.IsEnabledBy(enablers))
-            .AnyAsync(Matches, cancellationToken);
+            .AnyAsync(Matches, cancellationToken))
+        {
+            return;
+        }
+
+        throw CannotStartAnalysisException;
     }
 
-    public async Task<IEnumerable<Guid>> GetAnalysesNotReadableAsync(IEnumerable<Guid> analysisIds, CancellationToken cancellationToken)
+    public async Task CheckCanReadAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
+    {
+        static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanRead;
+
+        IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
+        if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<AnalysisPermission>>().Any(Matches))
+        {
+            return;
+        }
+
+        IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
+
+        if (await permissionAssignmentRepository
+            .GetPermissionAssignmentsAE<AnalysisPermission, Guid>(PermissionKind.Analysis, principalIds, [ analysisId ], cancellationToken)
+            .Where(x => x.IsEnabledBy(enablers))
+            .AnyAsync(Matches, cancellationToken))
+        {
+            return;
+        }
+
+        throw CannotReadAnalysisException;
+    }
+
+    public async Task<IEnumerable<Guid>> FilterReadableAnalysesAsync(IEnumerable<Guid> analysisIds, CancellationToken cancellationToken)
     {
         static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanRead;
 
@@ -162,42 +205,75 @@ internal sealed class PermissionService : IPermissionService
             .Select(static x => x.SubjectId)
             .ToArrayAsync(cancellationToken: cancellationToken);
 
-        return foundAnalysisIds.Contains(null) ? [ ] : analysisIds.Except(foundAnalysisIds.Cast<Guid>()).ToArray();
+        return foundAnalysisIds.Contains(null) ? analysisIds : analysisIds.Intersect(foundAnalysisIds.Cast<Guid>()).ToArray();
     }
 
-    public async Task<bool> CanExecuteAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
+    public async Task CheckCanInvokeAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
     {
-        static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanExecute;
+        static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanInvoke;
 
         IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
         if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<AnalysisPermission>>().Any(Matches))
         {
-            return true;
+            return;
         }
 
         IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
 
-        return await permissionAssignmentRepository
-            .GetPermissionAssignmentsAE<AnalysisPermission, Guid>(PermissionKind.Analysis, principalIds, null, cancellationToken)
+        if (await permissionAssignmentRepository
+            .GetPermissionAssignmentsAE<AnalysisPermission, Guid>(PermissionKind.Analysis, principalIds, [ analysisId ], cancellationToken)
             .Where(x => x.IsEnabledBy(enablers))
-            .AnyAsync(Matches, cancellationToken);
+            .AnyAsync(Matches, cancellationToken))
+        {
+            return;
+        }
+
+        throw CannotInvokeAnalysisException;
     }
 
-    public async Task<bool> CanManagePermissionsAsync(CancellationToken cancellationToken)
+    public async Task CheckCanManagePermissionsAsync(CancellationToken cancellationToken)
     {
         static bool Matches(IPermissionAssignment<PermissionPermission> pa) => pa.Permission.CanManage;
 
         IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
         if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<PermissionPermission>>().Any(Matches))
         {
-            return true;
+            return;
         }
 
         IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
 
-        return await permissionAssignmentRepository
+        if (await permissionAssignmentRepository
             .GetPermissionAssignmentsAE<PermissionPermission, ValueTuple>(PermissionKind.Permission, principalIds, null, cancellationToken)
             .Where(x => x.IsEnabledBy(enablers))
-            .AnyAsync(Matches, cancellationToken);
+            .AnyAsync(Matches, cancellationToken))
+        {
+            return;
+        }
+
+        throw CannotManagePermissionsException;
+    }
+
+    public async Task CheckCanManagePluginsAsync(CancellationToken cancellationToken)
+    {
+        static bool Matches(IPermissionAssignment<PluginPermission> pa) => pa.Permission.CanManage;
+
+        IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
+        if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<PluginPermission>>().Any(Matches))
+        {
+            return;
+        }
+
+        IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
+
+        if (await permissionAssignmentRepository
+            .GetPermissionAssignmentsAE<PluginPermission, ValueTuple>(PermissionKind.Plugin, principalIds, null, cancellationToken)
+            .Where(x => x.IsEnabledBy(enablers))
+            .AnyAsync(Matches, cancellationToken))
+        {
+            return;
+        }
+
+        throw CannotManagePluginsException;
     }
 }

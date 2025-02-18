@@ -169,8 +169,14 @@ internal sealed partial class OrchestratorExecutionService : IOrchestratorExecut
                 LogMessages.AgentTimeout(logger, agent.AgentName, exception);
                 continue;
             }
-            catch (AnalysisException exception)
-                when (isUnique && exception is { Label: nameof(AnalysisExceptions.AgentException), Parameters: [ HttpStatusCode.NotFound, .. ] })
+            catch (AnalysisException exception) when (
+                isUnique &&
+                exception is
+                {
+                    Label: nameof(AnalysisExceptions.AgentException),
+                    Parameters: [ HttpStatusCode.NotFound or HttpStatusCode.Forbidden, .. ],
+                }
+            )
             {
                 continue;
             }

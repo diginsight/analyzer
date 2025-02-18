@@ -3,6 +3,7 @@ using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Business.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using StreamOpener = System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.IO.Stream>>;
 
 namespace Diginsight.Analyzer.API.Controllers;
@@ -12,11 +13,17 @@ namespace Diginsight.Analyzer.API.Controllers;
 public sealed class AgentPluginController : ControllerBase
 {
     private readonly IPluginService pluginService;
+    private readonly IPermissionService permissionService;
     private readonly IHttpClientFactory httpClientFactory;
 
-    public AgentPluginController(IPluginService pluginService, IHttpClientFactory httpClientFactory)
+    public AgentPluginController(
+        IPluginService pluginService,
+        IPermissionService permissionService,
+        IHttpClientFactory httpClientFactory
+    )
     {
         this.pluginService = pluginService;
+        this.permissionService = permissionService;
         this.httpClientFactory = httpClientFactory;
     }
 
@@ -30,6 +37,8 @@ public sealed class AgentPluginController : ControllerBase
     public async Task<IActionResult> Register()
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
+
+        await permissionService.CheckCanManagePluginsAsync(cancellationToken);
 
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
         try
@@ -86,8 +95,10 @@ public sealed class AgentPluginController : ControllerBase
     }
 
     [HttpDelete("{pluginId:guid}")]
-    public IActionResult Unregister(Guid pluginId)
+    public async Task<IActionResult> Unregister(Guid pluginId)
     {
+        await permissionService.CheckCanManagePluginsAsync(CancellationToken.None);
+
         pluginService.Unregister(pluginId);
         return NoContent();
     }

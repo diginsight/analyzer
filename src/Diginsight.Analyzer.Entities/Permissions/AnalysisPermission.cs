@@ -8,7 +8,7 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
     public static readonly AnalysisPermission None = default;
     public static readonly AnalysisPermission Start = new (nameof(Start), false, true, false);
     public static readonly AnalysisPermission Read = new (nameof(Read), false, true, false);
-    public static readonly AnalysisPermission ReadAndExecute = new (nameof(ReadAndExecute), false, true, true);
+    public static readonly AnalysisPermission ReadAndInvoke = new (nameof(ReadAndInvoke), false, true, true);
 
     static IReadOnlyDictionary<string, AnalysisPermission> IPermission<AnalysisPermission>.Values { get; } =
         new Dictionary<string, AnalysisPermission>(StringComparer.OrdinalIgnoreCase)
@@ -16,7 +16,7 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
             [nameof(None)] = None,
             [nameof(Start)] = Start,
             [nameof(Read)] = Read,
-            [nameof(ReadAndExecute)] = ReadAndExecute,
+            [nameof(ReadAndInvoke)] = ReadAndInvoke,
         };
 
     // ReSharper disable once ReplaceWithFieldKeyword
@@ -28,14 +28,14 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
 
     public bool CanRead { get; }
 
-    public bool CanExecute { get; }
+    public bool CanInvoke { get; }
 
-    private AnalysisPermission(string name, bool canStart, bool canRead, bool canExecute)
+    private AnalysisPermission(string name, bool canStart, bool canRead, bool canInvoke)
     {
         this.name = name;
         CanStart = canStart;
         CanRead = canRead;
-        CanExecute = canExecute;
+        CanInvoke = canInvoke;
     }
 
     public bool Equals(AnalysisPermission other)
@@ -68,6 +68,6 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
         return right is AnalysisPermission other
             && (left.CanStart || !other.CanStart)
             && (left.CanRead || !other.CanRead)
-            && (left.CanExecute || !other.CanExecute);
+            && (left.CanInvoke || !other.CanInvoke);
     }
 }

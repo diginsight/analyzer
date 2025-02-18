@@ -7,10 +7,13 @@ using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Repositories;
 using Diginsight.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Identity.Web;
 using Newtonsoft.Json;
 using AzureCliCredential = Azure.Identity.AzureCliCredential;
 using GlobalExceptionFilter = Diginsight.Analyzer.API.Mvc.GlobalExceptionFilter;
@@ -47,6 +50,8 @@ internal static partial class Program
         // TODO OpenTelemetry
 
         earlyLoggingManager.AttachTo(services);
+
+        services.AddMicrosoftIdentityWebApiAuthentication(configuration);
 
         appBuilder.Host.UseDiginsightServiceProvider();
 
@@ -111,6 +116,7 @@ internal static partial class Program
             .AddMvcCore(
                 static options =>
                 {
+                    options.Filters.Add<AuthorizeFilter>();
                     options.Filters.Add<GlobalModelStateActionFilter>();
                     options.Filters.Add<GlobalExceptionFilter>();
 
@@ -147,6 +153,9 @@ internal static partial class Program
                     return next(httpContext);
                 }
         );
+
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseRouting();
 

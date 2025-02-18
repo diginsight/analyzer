@@ -8,4 +8,5 @@ public enum PermissionKind
 {
     Analysis,
     Permission,
+    Plugin,
 }

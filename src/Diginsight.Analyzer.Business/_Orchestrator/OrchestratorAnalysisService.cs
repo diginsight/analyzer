@@ -16,6 +16,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
     private readonly IInternalAnalysisService internalAnalysisService;
     private readonly IOrchestratorAnalysisContextFactory analysisContextFactory;
     private readonly ISnapshotService snapshotService;
+    private readonly IPermissionService permissionService;
     private readonly IAnalysisInfoRepository infoRepository;
     private readonly IAnalysisFileRepository fileRepository;
     private readonly IAmbientService ambientService;
@@ -29,6 +30,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         IInternalAnalysisService internalAnalysisService,
         IOrchestratorAnalysisContextFactory analysisContextFactory,
         ISnapshotService snapshotService,
+        IPermissionService permissionService,
         IAnalysisInfoRepository infoRepository,
         IAnalysisFileRepository fileRepository,
         IAmbientService ambientService,
@@ -40,6 +42,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         this.internalAnalysisService = internalAnalysisService;
         this.analysisContextFactory = analysisContextFactory;
         this.snapshotService = snapshotService;
+        this.permissionService = permissionService;
         this.infoRepository = infoRepository;
         this.fileRepository = fileRepository;
         this.ambientService = ambientService;
@@ -92,6 +95,8 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
         {
             throw AnalysisExceptions.NoSuchAnalysis;
         }
+
+        await permissionService.CheckCanInvokeAnalysisAsync(analysisId, cancellationToken);
 
         if (snapshot.FinishedAt is not null)
         {
@@ -189,7 +194,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
 
     public async IAsyncEnumerable<ExtendedAnalysisCoord> AbortExecutionAE(Guid executionId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (await snapshotService.GetAnalysisAsync(executionId, false, cancellationToken) is not { } snapshot)
+        if (await snapshotService.GetAnalysisAsync(executionId, false, false,cancellationToken) is not { } snapshot)
         {
             yield break;
         }
@@ -224,7 +229,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
 
     public async IAsyncEnumerable<ExtendedAnalysisCoord> AbortAnalysisAE(AnalysisCoord coord, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (await snapshotService.GetAnalysisAsync(coord, false, cancellationToken) is not { } snapshot)
+        if (await snapshotService.GetAnalysisAsync(coord, false, false, cancellationToken) is not { } snapshot)
         {
             yield break;
         }

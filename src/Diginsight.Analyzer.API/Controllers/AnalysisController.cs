@@ -23,6 +23,7 @@ public abstract class AnalysisController : ControllerBase
     private readonly IAnalysisService analysisService;
     private readonly ISnapshotService snapshotService;
     private readonly IWaitingService waitingService;
+    private readonly IPermissionService permissionService;
     private readonly IHttpClientFactory httpClientFactory;
     private readonly JsonSerializer jsonSerializer;
 
@@ -30,6 +31,7 @@ public abstract class AnalysisController : ControllerBase
         IAnalysisService analysisService,
         ISnapshotService snapshotService,
         IWaitingService waitingService,
+        IPermissionService permissionService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
@@ -37,6 +39,7 @@ public abstract class AnalysisController : ControllerBase
         this.analysisService = analysisService;
         this.snapshotService = snapshotService;
         this.waitingService = waitingService;
+        this.permissionService = permissionService;
         this.httpClientFactory = httpClientFactory;
         this.jsonSerializer = jsonSerializer;
     }
@@ -48,6 +51,8 @@ public abstract class AnalysisController : ControllerBase
     )
         where T : IExecutionCoord
     {
+        await permissionService.CheckCanStartAnalysisAsync(cancellationToken);
+
         ICollection<IAsyncDisposable> disposables = new List<IAsyncDisposable>();
 
         T coord;
@@ -130,7 +135,7 @@ public abstract class AnalysisController : ControllerBase
 
         Guid executionId = coord.Id;
         await waitingService.WaitAsync(executionId, cancellationToken);
-        return Ok(await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken));
+        return Ok(await snapshotService.GetAnalysisAsync(executionId, true, false, cancellationToken));
     }
 
     [HttpDelete("execution/{executionId:guid}")]

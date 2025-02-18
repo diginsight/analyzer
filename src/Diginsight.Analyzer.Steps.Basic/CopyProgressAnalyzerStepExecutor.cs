@@ -42,11 +42,11 @@ internal sealed class CopyProgressAnalyzerStepExecutor : IAnalyzerStepExecutor
         if (input.AnalysisId is { } analysisId)
         {
             AnalysisCoord coord = new (analysisId, input.Attempt ?? -1);
-            snapshot = await snapshotService.GetAnalysisAsync(coord, true, cancellationToken);
+            snapshot = await snapshotService.GetAnalysisAsync(coord, true, true, cancellationToken);
         }
         else
         {
-            snapshot = await snapshotService.GetAnalysisAsync(input.ExecutionId!.Value, true, cancellationToken);
+            snapshot = await snapshotService.GetAnalysisAsync(input.ExecutionId!.Value, true, true, cancellationToken);
         }
 
         if (snapshot is null)

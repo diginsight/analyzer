@@ -76,7 +76,10 @@ internal sealed partial class AgentExecutionService : IAgentExecutionService
     }
 
     public async IAsyncEnumerable<(Guid Id, object Detail)> AbortAE(
-        ExecutionKind kind, Guid? executionId, [EnumeratorCancellation] CancellationToken cancellationToken
+        ExecutionKind kind,
+        Guid? executionId,
+        Func<ExecutionKind, Guid, object, CancellationToken, Task> checkCanAbortAsync,
+        [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
         await semaphore.WaitAsync(CancellationToken.None);
@@ -84,6 +87,7 @@ internal sealed partial class AgentExecutionService : IAgentExecutionService
         {
             if (current is var (cancellationSource, (kind0, executionId0), detail, _) && kind0 == kind && executionId0 == (executionId ?? executionId0))
             {
+                await checkCanAbortAsync(kind0, executionId0, detail, cancellationToken);
                 await cancellationSource.CancelAsync();
                 yield return (executionId0, detail);
             }

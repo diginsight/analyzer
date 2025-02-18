@@ -18,5 +18,5 @@ public readonly struct AnalysisPermissionAssignment : IPermissionAssignment<Anal
         SubjectId = subjectId;
     }
 
-    public bool NeedsEnabler() => SubjectId is not null && (Permission == AnalysisPermission.Read || Permission == AnalysisPermission.ReadAndExecute);
+    public bool NeedsEnabler() => SubjectId is not null && (Permission == AnalysisPermission.Read || Permission == AnalysisPermission.ReadAndInvoke);
 }

@@ -1,6 +1,6 @@
 ﻿namespace Diginsight.Analyzer.Business;
 
-internal interface IAgentExecutionService : IExecutionService
+internal interface IAgentExecutionService
 {
     Task<Guid> StartAsync<TLease>(
         ExecutionKind kind,
@@ -21,4 +21,11 @@ internal interface IAgentExecutionService : IExecutionService
     Task WaitForFinishAsync();
 
     Task<(ExecutionCoord Coord, object Detail)?> GetCurrentAsync(CancellationToken cancellationToken);
+
+    IAsyncEnumerable<(Guid Id, object Detail)> AbortAE(
+        ExecutionKind kind,
+        Guid? executionId,
+        Func<ExecutionKind, Guid, object, CancellationToken, Task> checkCanAbortAsync,
+        CancellationToken cancellationToken
+    );
 }

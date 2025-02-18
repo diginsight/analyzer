@@ -1,6 +1,6 @@
 ﻿namespace Diginsight.Analyzer.Business;
 
-internal interface IOrchestratorExecutionService : IExecutionService
+internal interface IOrchestratorExecutionService
 {
     public const string NoAgentAvailableExceptionLabel = "NoAgentAvailable";
 
@@ -12,4 +12,8 @@ internal interface IOrchestratorExecutionService : IExecutionService
     );
 
     Task<bool> DequeueAsync(Guid executionId, string agentPool, CancellationToken cancellationToken);
+
+    IAsyncEnumerable<(Guid Id, object Detail)> AbortAE(
+        ExecutionKind kind, Guid? executionId, CancellationToken cancellationToken
+    );
 }

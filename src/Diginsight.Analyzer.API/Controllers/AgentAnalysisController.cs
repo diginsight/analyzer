@@ -21,10 +21,11 @@ public class AgentAnalysisController : AnalysisController
         IAgentAnalysisService analysisService,
         ISnapshotService snapshotService,
         IWaitingService waitingService,
+        IPermissionService permissionService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer
     )
-        : base(analysisService, snapshotService, waitingService, httpClientFactory, jsonSerializer)
+        : base(analysisService, snapshotService, waitingService, permissionService, httpClientFactory, jsonSerializer)
     {
         this.analysisService = analysisService;
     }
@@ -41,6 +42,7 @@ public class AgentAnalysisController : AnalysisController
         return ReattemptAsync(analysisId, wait, analysisService.ReattemptAsync, HttpContext.RequestAborted);
     }
 
+    // TODO Check Dequeue permission
     [HttpPost("execution/{executionId:guid}")]
     public async Task<IActionResult> Dequeue([FromRoute] Guid executionId)
     {

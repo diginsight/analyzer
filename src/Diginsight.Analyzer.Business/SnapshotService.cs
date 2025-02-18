@@ -7,14 +7,17 @@ namespace Diginsight.Analyzer.Business;
 
 internal sealed class SnapshotService : ISnapshotService
 {
+    private readonly IPermissionService permissionService;
     private readonly IAnalysisInfoRepository infoRepository;
     private readonly ICoreOptions coreOptions;
 
     public SnapshotService(
+        IPermissionService permissionService,
         IAnalysisInfoRepository infoRepository,
         IOptions<CoreOptions> coreOptions
     )
     {
+        this.permissionService = permissionService;
         this.infoRepository = infoRepository;
         this.coreOptions = coreOptions.Value;
     }
@@ -24,14 +27,24 @@ internal sealed class SnapshotService : ISnapshotService
         return infoRepository.GetAnalysisSnapshotsAsync(page, ValidatePageSize(pageSize), withProgress, queued, cancellationToken);
     }
 
-    public Task<AnalysisContextSnapshot?> GetAnalysisAsync(Guid executionId, bool withProgress, CancellationToken cancellationToken)
+    public async Task<AnalysisContextSnapshot?> GetAnalysisAsync(Guid executionId, bool withProgress, bool checkPermission, CancellationToken cancellationToken)
     {
-        return infoRepository.GetAnalysisSnapshotAsync(executionId, withProgress, cancellationToken);
+        AnalysisContextSnapshot? snapshot = await infoRepository.GetAnalysisSnapshotAsync(executionId, withProgress, cancellationToken);
+        if (checkPermission && snapshot is not null)
+        {
+            await permissionService.CheckCanReadAnalysisAsync(snapshot.AnalysisId, cancellationToken);
+        }
+        return snapshot;
     }
 
-    public Task<AnalysisContextSnapshot?> GetAnalysisAsync(AnalysisCoord analysisCoord, bool withProgress, CancellationToken cancellationToken)
+    public async Task<AnalysisContextSnapshot?> GetAnalysisAsync(AnalysisCoord analysisCoord, bool withProgress, bool checkPermission, CancellationToken cancellationToken)
     {
-        return infoRepository.GetAnalysisSnapshotAsync(analysisCoord, withProgress, cancellationToken);
+        AnalysisContextSnapshot? snapshot = await infoRepository.GetAnalysisSnapshotAsync(analysisCoord, withProgress, cancellationToken);
+        if (checkPermission && snapshot is not null)
+        {
+            await permissionService.CheckCanReadAnalysisAsync(snapshot.AnalysisId, cancellationToken);
+        }
+        return snapshot;
     }
 
     public IAsyncEnumerable<AnalysisContextSnapshot> GetAnalysesAE(Guid analysisId, bool withProgress, CancellationToken cancellationToken)

@@ -15,7 +15,7 @@ public static class BusinessImplExtensions
 {
     public static IServiceCollection AddBusiness(this IServiceCollection services, IConfiguration configuration)
     {
-        if (services.Any(static x => x.ServiceType == typeof(IExecutionService)))
+        if (services.Any(static x => x.ServiceType == typeof(IAmbientService)))
         {
             return services;
         }
@@ -34,7 +34,6 @@ public static class BusinessImplExtensions
         {
             services
                 .AddSingleton<IAgentExecutionService, AgentExecutionService>()
-                .AddSingleton<IExecutionService>(static p => p.GetRequiredService<IAgentExecutionService>())
                 .AddSingleton<IAgentLeaseService, AgentLeaseService>()
                 .AddSingleton<IAgentAnalysisService, AgentAnalysisService>()
                 .AddSingleton<IAnalysisService>(static p => p.GetRequiredService<IAgentAnalysisService>())
@@ -51,7 +50,6 @@ public static class BusinessImplExtensions
         {
             services
                 .AddSingleton<IOrchestratorExecutionService, OrchestratorExecutionService>()
-                .AddSingleton<IExecutionService>(static p => p.GetRequiredService<IOrchestratorExecutionService>())
                 .AddSingleton<IOrchestratorLeaseService, OrchestratorLeaseService>()
                 .AddSingleton<IOrchestratorAnalysisService, OrchestratorAnalysisService>()
                 .AddSingleton<IAnalysisService>(static p => p.GetRequiredService<IOrchestratorAnalysisService>())

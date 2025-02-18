@@ -18,11 +18,12 @@ public class OrchestratorAnalysisController : AnalysisController
         IOrchestratorAnalysisService analysisService,
         ISnapshotService snapshotService,
         IWaitingService waitingService,
+        IPermissionService permissionService,
         IHttpClientFactory httpClientFactory,
         JsonSerializer jsonSerializer,
         IDequeuerService dequeuerService
     )
-        : base(analysisService, snapshotService, waitingService, httpClientFactory, jsonSerializer)
+        : base(analysisService, snapshotService, waitingService, permissionService, httpClientFactory, jsonSerializer)
     {
         this.analysisService = analysisService;
         this.dequeuerService = dequeuerService;
@@ -60,6 +61,7 @@ public class OrchestratorAnalysisController : AnalysisController
         );
     }
 
+    // TODO Check Dequeue permission
     [HttpPost("execution")]
     public IActionResult Dequeue()
     {

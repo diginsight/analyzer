@@ -22,6 +22,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     private readonly ISnapshotService snapshotService;
     private readonly IAmbientService ambientService;
     private readonly IPluginService pluginService;
+    private readonly IPermissionService permissionService;
     private readonly IAnalysisFileRepository fileRepository;
     private readonly ICoreOptions coreOptions;
 
@@ -32,6 +33,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         ISnapshotService snapshotService,
         IAmbientService ambientService,
         IPluginService pluginService,
+        IPermissionService permissionService,
         IAnalysisFileRepository fileRepository,
         IOptions<CoreOptions> coreOptions
     )
@@ -42,6 +44,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         this.snapshotService = snapshotService;
         this.ambientService = ambientService;
         this.pluginService = pluginService;
+        this.permissionService = permissionService;
         this.fileRepository = fileRepository;
         this.coreOptions = coreOptions.Value;
     }
@@ -81,6 +84,8 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
             throw AnalysisExceptions.NoSuchAnalysis;
         }
 
+        await permissionService.CheckCanInvokeAnalysisAsync(analysisId, cancellationToken);
+
         if (snapshot.FinishedAt is null)
         {
             throw AnalysisExceptions.AlreadyPendingOrRunning;
@@ -101,7 +106,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     {
         LogMessages.PreparingForDequeue(logger, executionId);
 
-        if (await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken) is not { } snapshot)
+        if (await snapshotService.GetAnalysisAsync(executionId, true, false,cancellationToken) is not { } snapshot)
         {
             throw AnalysisExceptions.NoSuchExecution;
         }
@@ -147,7 +152,12 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private IAsyncEnumerable<ExtendedAnalysisCoord> CoreAbortExecutionAE(Guid? executionId, CancellationToken cancellationToken)
     {
-        return executionService.AbortAE(ExecutionKind.Analysis, executionId, cancellationToken)
+        return executionService.AbortAE(
+                ExecutionKind.Analysis,
+                executionId,
+                (_, _, detail, ct) => permissionService.CheckCanInvokeAnalysisAsync(((AnalysisCoord)detail).Id, ct),
+                cancellationToken
+            )
             .Select(
                 static x =>
                 {
@@ -166,7 +176,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
 
     public async IAsyncEnumerable<ExtendedAnalysisCoord> AbortAnalysisAE(AnalysisCoord coord, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (await snapshotService.GetAnalysisAsync(coord, false, cancellationToken) is not { StartedAt: not null, FinishedAt: null, ExecutionId: var executionId })
+        if (await snapshotService.GetAnalysisAsync(coord, false, false,cancellationToken) is not { StartedAt: not null, FinishedAt: null, ExecutionId: var executionId })
         {
             yield break;
         }

@@ -10,13 +10,20 @@ public sealed class SnapshotController : ControllerBase
 {
     private readonly ISnapshotService snapshotService;
     private readonly IWaitingService waitingService;
+    private readonly IPermissionService permissionService;
 
-    public SnapshotController(ISnapshotService snapshotService, IWaitingService waitingService)
+    public SnapshotController(
+        ISnapshotService snapshotService,
+        IWaitingService waitingService,
+        IPermissionService permissionService
+    )
     {
         this.snapshotService = snapshotService;
         this.waitingService = waitingService;
+        this.permissionService = permissionService;
     }
 
+    // TODO Filter by Read permissions
     [HttpGet("analysis")]
     public async Task<IActionResult> GetSnapshots(
         [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] bool skipProgress, [FromQuery] bool queued
@@ -40,16 +47,23 @@ public sealed class SnapshotController : ControllerBase
     public async Task<IActionResult> GetSnapshots([FromRoute] Guid analysisId, [FromQuery] bool skipProgress)
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
-        AnalysisContextSnapshot[] snapshots =
-            await snapshotService.GetAnalysesAE(analysisId, !skipProgress, cancellationToken).ToArrayAsync(cancellationToken);
-        return snapshots.Length > 0 ? Ok(snapshots) : throw AnalysisExceptions.NoSuchAnalysis;
+
+        AnalysisContextSnapshot[] snapshots = await snapshotService.GetAnalysesAE(analysisId, !skipProgress, cancellationToken).ToArrayAsync(cancellationToken);
+        if (!(snapshots.Length > 0))
+        {
+            throw AnalysisExceptions.NoSuchAnalysis;
+        }
+
+        await permissionService.CheckCanReadAnalysisAsync(analysisId, cancellationToken);
+        return Ok(snapshots);
     }
 
     [HttpGet("execution/{executionId:guid}")]
     public async Task<IActionResult> GetSnapshot([FromRoute] Guid executionId, [FromQuery] bool skipProgress, [FromQuery] bool wait)
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
-        return await snapshotService.GetAnalysisAsync(executionId, !skipProgress, cancellationToken) is { } snapshot
+
+        return await snapshotService.GetAnalysisAsync(executionId, !skipProgress, true, cancellationToken) is { } snapshot
             ? await OkOrWaitAsync(snapshot, skipProgress, wait, cancellationToken)
             : throw AnalysisExceptions.NoSuchExecution;
     }
@@ -58,7 +72,8 @@ public sealed class SnapshotController : ControllerBase
     public async Task<IActionResult> GetSnapshot([FromRoute] Guid analysisId, [FromRoute] int attempt, [FromQuery] bool skipProgress, [FromQuery] bool wait)
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
-        return await snapshotService.GetAnalysisAsync(new AnalysisCoord(analysisId, attempt), !skipProgress, cancellationToken) is { } snapshot
+
+        return await snapshotService.GetAnalysisAsync(new AnalysisCoord(analysisId, attempt), !skipProgress, true, cancellationToken) is { } snapshot
             ? await OkOrWaitAsync(snapshot, skipProgress, wait, cancellationToken)
             : throw AnalysisExceptions.NoSuchAnalysis;
     }
@@ -72,6 +87,6 @@ public sealed class SnapshotController : ControllerBase
 
         Guid executionId = snapshot.ExecutionId;
         await waitingService.WaitAsync(executionId, cancellationToken);
-        return Ok(await snapshotService.GetAnalysisAsync(executionId, !skipProgress, cancellationToken));
+        return Ok(await snapshotService.GetAnalysisAsync(executionId, !skipProgress, false, cancellationToken));
     }
 }
