@@ -6,7 +6,7 @@ namespace Diginsight.Analyzer.Entities.Permissions;
 public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
 {
     public static readonly AnalysisPermission None = default;
-    public static readonly AnalysisPermission Start = new (nameof(Start), false, true, false);
+    public static readonly AnalysisPermission Start = new (nameof(Start), true, false, false);
     public static readonly AnalysisPermission Read = new (nameof(Read), false, true, false);
     public static readonly AnalysisPermission ReadAndInvoke = new (nameof(ReadAndInvoke), false, true, true);
 

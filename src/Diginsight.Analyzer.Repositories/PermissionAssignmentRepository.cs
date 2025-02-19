@@ -21,7 +21,7 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
     {
         this.logger = logger;
         this.repositoriesOptions = repositoriesOptions.Value;
-        permissionAssignmentContainer = this.repositoriesOptions.CosmosClient.GetContainer("analyzer", "permissionAssignment");
+        permissionAssignmentContainer = this.repositoriesOptions.CosmosClient.GetContainer("analyzer", "permissionAssignments");
     }
 
     void IDisposable.Dispose()
@@ -38,7 +38,9 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
         LogMessages.GettingPermissionAssignments(logger, kind, principalIds);
 
         IQueryable<IPermissionAssignment<TPermissions, TSubject>> queryable = permissionAssignmentContainer
-            .GetItemLinqQueryable<IPermissionAssignment<TPermissions, TSubject>>()
+            .GetItemLinqQueryable<IPermissionAssignment<TPermissions, TSubject>>(
+                requestOptions: new QueryRequestOptions() { PartitionKey = new PartitionKey(kind.ToString("G")) }
+            )
             .Where(x => x.PrincipalId == null || principalIds.Contains(x.PrincipalId!.Value));
 
         if (subjectIds is not null)

@@ -3,7 +3,6 @@ using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Business.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using StreamOpener = System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.IO.Stream>>;
 
 namespace Diginsight.Analyzer.API.Controllers;

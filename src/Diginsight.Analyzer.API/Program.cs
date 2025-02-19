@@ -7,7 +7,6 @@ using Diginsight.Analyzer.Business;
 using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Repositories;
 using Diginsight.Diagnostics;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -15,8 +14,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Newtonsoft.Json;
-using AzureCliCredential = Azure.Identity.AzureCliCredential;
-using GlobalExceptionFilter = Diginsight.Analyzer.API.Mvc.GlobalExceptionFilter;
 
 namespace Diginsight.Analyzer.API;
 
@@ -51,46 +48,46 @@ internal static partial class Program
 
         earlyLoggingManager.AttachTo(services);
 
-        services.AddMicrosoftIdentityWebApiAuthentication(configuration);
+        services.AddMicrosoftIdentityWebApiAuthentication(configuration, "Api:AzureAd");
 
         appBuilder.Host.UseDiginsightServiceProvider();
 
+        bool isLocal = environment.IsDevelopment();
+        bool isAgent = CommonUtils.IsAgent;
+
         TokenCredential credential;
         {
-            IConfiguration apiCfgSection = configuration.GetSection("Api");
-            Uri appConfigurationEndpoint = new (apiCfgSection["AppConfigurationEndpoint"]!);
+            IConfiguration appCfgConfiguration = configuration.GetSection("Api:AppConfiguration");
 
-            IConfiguration appRegistrationCfgSection = apiCfgSection.GetSection("AppRegistration");
-            string tenantId = appRegistrationCfgSection["TenantId"]!;
-            string? clientId = appRegistrationCfgSection["ClientId"];
-            string? clientSecret = appRegistrationCfgSection["ClientSecret"];
+            Uri appConfigurationEndpoint = new (appCfgConfiguration["Endpoint"]!);
+            string tenantId = appCfgConfiguration["TenantId"]!;
 
-            credential = string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret)
-                ? new AzureCliCredential(new AzureCliCredentialOptions() { TenantId = tenantId })
-                : new ClientSecretCredential(tenantId, clientId, clientSecret);
+            credential = new AzureCliCredential(new AzureCliCredentialOptions() { TenantId = tenantId });
 
             appBuilder.Configuration.AddAzureAppConfiguration(
                 aaco =>
                 {
-                    aaco.Connect(appConfigurationEndpoint, credential);
-                    aaco.ConfigureKeyVault(aackvo => aackvo.SetCredential(credential));
+                    aaco
+                        .Connect(appConfigurationEndpoint, credential)
+                        .Select("*")
+                        .Select("*", isLocal ? "local" : "deployed");
                 }
             );
         }
-
-        bool isLocal = environment.IsDevelopment();
-        bool isAgent = CommonUtils.IsAgent;
 
         LogMessages.ProgramInfos(logger, isAgent);
 
         services.TryAddSingleton(TimeProvider.System);
 
+        services
+            .AddTransient<GlobalExceptionMiddleware>()
+            .AddSingleton<IPermissionService, PermissionService>();
+
         services.AddHttpClient(typeof(AnalysisController).FullName!);
 
         services
             .AddRepositories(configuration, credential)
-            .AddBusiness(configuration)
-            .AddSingleton<IPermissionService, PermissionService>();
+            .AddBusiness(configuration);
 
         if (isAgent)
         {
@@ -116,9 +113,8 @@ internal static partial class Program
             .AddMvcCore(
                 static options =>
                 {
-                    options.Filters.Add<AuthorizeFilter>();
+                    options.Filters.Add(new AuthorizeFilter());
                     options.Filters.Add<GlobalModelStateActionFilter>();
-                    options.Filters.Add<GlobalExceptionFilter>();
 
                     FlavorAwareModelConvention convention = FlavorAwareModelConvention.Instance;
                     options.Conventions.Add((IActionModelConvention)convention);
@@ -139,6 +135,8 @@ internal static partial class Program
         {
             LogMessages.AgentPool(logger, agentAmbientService.AgentPool);
         }
+
+        app.UseMiddleware<GlobalExceptionMiddleware>();
 
         if (!isLocal)
         {

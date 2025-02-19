@@ -63,7 +63,8 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
     {
         LogMessages.GettingAnalysisSnapshots(logger, page, pageSize);
 
-        IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>();
+        IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
+            .Where(static x => x.Kind == ExecutionKind.Analysis);
         queryable = queued
             ? queryable
                 .Where(static x => x.Status == TimeBoundStatus.Pending)
@@ -121,7 +122,8 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
 
         LogMessages.GettingAnalysisSnapshot(logger, analysisId, attempt);
 
-        IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>();
+        IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
+            .Where(static x => x.Kind == ExecutionKind.Analysis);
         if (attempt >= 0)
         {
             queryable = queryable
@@ -161,7 +163,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         LogMessages.GettingAnalysisSnapshots(logger, analysisId);
 
         IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
-            .Where(x => x.AnalysisId == analysisId)
+            .Where(x => x.Kind == ExecutionKind.Analysis && x.AnalysisId == analysisId)
             .OrderByDescending(static x => x.Attempt);
 
         using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable).ToFeedIterator();
@@ -183,7 +185,7 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         LogMessages.GettingAllQueuedAnalysisSnapshots(logger);
 
         IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
-            .Where(static x => x.Status == TimeBoundStatus.Pending)
+            .Where(static x => x.Kind == ExecutionKind.Analysis && x.Status == TimeBoundStatus.Pending)
             .OrderBy(static x => x.QueuedAt);
 
         using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable).ToFeedIterator();

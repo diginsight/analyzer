@@ -7,6 +7,7 @@ public abstract class ExecutionContextSnapshot
     [JsonProperty("id")]
     public string Id => ExecutionId.ToString("D");
 
+    [JsonProperty("kind")]
     public ExecutionKind Kind
     {
         get;

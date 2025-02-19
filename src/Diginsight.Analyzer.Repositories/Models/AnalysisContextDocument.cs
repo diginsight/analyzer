@@ -6,10 +6,9 @@ namespace Diginsight.Analyzer.Repositories.Models;
 
 internal sealed class AnalysisContextDocument
 {
-    [JsonProperty("id")]
     public string Id { get; }
 
-    public ExecutionKind ExecutionKind { get; }
+    public ExecutionKind Kind { get; }
 
     public Guid AnalysisId { get; }
 
@@ -19,9 +18,9 @@ internal sealed class AnalysisContextDocument
     public JObject ExtensionData { get; } = new ();
 
     [JsonConstructor]
-    private AnalysisContextDocument(ExecutionKind executionKind, string id, Guid analysisId, int attempt)
+    private AnalysisContextDocument(ExecutionKind kind, string id, Guid analysisId, int attempt)
     {
-        ExecutionKind = executionKind;
+        Kind = kind;
         Id = id;
         AnalysisId = analysisId;
         Attempt = attempt;
