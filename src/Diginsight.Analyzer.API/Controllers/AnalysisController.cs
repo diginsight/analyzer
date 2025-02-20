@@ -23,7 +23,7 @@ public abstract class AnalysisController : ControllerBase
     private readonly IAnalysisService analysisService;
     private readonly ISnapshotService snapshotService;
     private readonly IWaitingService waitingService;
-    private readonly IPermissionService permissionService;
+    protected readonly IPermissionService permissionService;
     private readonly IHttpClientFactory httpClientFactory;
     private readonly JsonSerializer jsonSerializer;
 

@@ -42,11 +42,14 @@ public class AgentAnalysisController : AnalysisController
         return ReattemptAsync(analysisId, wait, analysisService.ReattemptAsync, HttpContext.RequestAborted);
     }
 
-    // TODO Check Dequeue permission
     [HttpPost("execution/{executionId:guid}")]
     public async Task<IActionResult> Dequeue([FromRoute] Guid executionId)
     {
-        (Guid analysisId, int attempt) = await analysisService.DequeueAsync(executionId, HttpContext.RequestAborted);
+        CancellationToken cancellationToken = HttpContext.RequestAborted;
+
+        await permissionService.CheckCanDequeueExecutionAsync(executionId, cancellationToken);
+
+        (Guid analysisId, int attempt) = await analysisService.DequeueAsync(executionId, cancellationToken);
         return Accepted(new ExtendedAnalysisCoord(executionId, analysisId, attempt));
     }
 

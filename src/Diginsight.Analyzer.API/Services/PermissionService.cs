@@ -23,6 +23,9 @@ internal sealed class PermissionService : IPermissionService
     private static readonly AnalysisException CannotStartAnalysisException =
         new ("Cannot start a new analysis", HttpStatusCode.Forbidden, "CannotStartAnalysis");
 
+    private static readonly AnalysisException CannotDequeueExecutionsException =
+        new ("Cannot dequeue executions", HttpStatusCode.Forbidden, "CannotDequeueExecutions");
+
     private static readonly AnalysisException CannotReadAnalysisException =
         new ("Cannot read such analysis", HttpStatusCode.Forbidden, "CannotReadAnalysis");
 
@@ -35,6 +38,7 @@ internal sealed class PermissionService : IPermissionService
     private static readonly AnalysisException CannotManagePluginsException =
         new ("Cannot manage plugins", HttpStatusCode.Forbidden, "CannotManagePlugins");
 
+    private static readonly object MainPrincipalItemKey = new ();
     private static readonly object PrincipalIdsItemKey = new ();
     private static readonly object PermissionAssignmentEnablersItemKey = new ();
 
@@ -114,12 +118,12 @@ internal sealed class PermissionService : IPermissionService
         public required IEnumerable<IPermissionAssignment> StaticAssignments { get; init; }
     }
 
-    private async Task<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken)
+    private (Guid ObjectId, bool IsUser) GetMainPrincipal()
     {
         HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
-        if (httpContext.Items.TryGetValue(PrincipalIdsItemKey, out object? rawPrincipalIds))
+        if (httpContext.Items.TryGetValue(MainPrincipalItemKey, out object? rawMainPrincipal))
         {
-            return (IEnumerable<Guid>)rawPrincipalIds!;
+            return (ValueTuple<Guid, bool>)rawMainPrincipal!;
         }
 
         ClaimsPrincipal user = httpContext.User ?? throw UnauthenticatedException;
@@ -139,7 +143,22 @@ internal sealed class PermissionService : IPermissionService
             _ => throw BadAzpacrClaimException,
         };
 
-        IEnumerable<Guid> principalIds = (await identityRepository.GetGroupsAsync(objectId, isUser, cancellationToken)).Prepend(objectId).ToArray();
+        (Guid, bool) mainPrincipal = (objectId, isUser);
+        httpContext.Items[MainPrincipalItemKey] = mainPrincipal;
+        return mainPrincipal;
+    }
+
+    private async Task<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken)
+    {
+        HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
+        if (httpContext.Items.TryGetValue(PrincipalIdsItemKey, out object? rawPrincipalIds))
+        {
+            return (IEnumerable<Guid>)rawPrincipalIds!;
+        }
+
+        (Guid objectId, bool isUser) = GetMainPrincipal();
+
+        IEnumerable<Guid> principalIds = (await identityRepository.GetGroupIdsAsync(objectId, isUser, cancellationToken)).Prepend(objectId).ToArray();
         httpContext.Items[PrincipalIdsItemKey] = principalIds;
         return principalIds;
     }
@@ -151,6 +170,22 @@ internal sealed class PermissionService : IPermissionService
         );
     }
 
+    public async Task CheckCanDequeueExecutionAsync(Guid? executionId, CancellationToken cancellationToken)
+    {
+        if (executionId is null)
+        {
+            (Guid objectId, bool isUser) = GetMainPrincipal();
+            if (isUser) // TODO Validate objectId equal to self
+            {
+                throw CannotDequeueExecutionsException;
+            }
+
+            return;
+        }
+
+        throw new NotImplementedException();
+    }
+
     public Task CheckCanReadAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
     {
         return CoreCheckCanDoStuffAsync<AnalysisPermission, Guid>(
@@ -158,32 +193,10 @@ internal sealed class PermissionService : IPermissionService
         );
     }
 
-    public async Task<IEnumerable<Guid>> FilterReadableAnalysesAsync(IEnumerable<Guid> analysisIds, CancellationToken cancellationToken)
-    {
-        static bool Matches(IPermissionAssignment<AnalysisPermission> pa) => pa.Permission.CanRead;
-
-        IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
-        if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<AnalysisPermission>>().Any(Matches))
-        {
-            return [ ];
-        }
-
-        IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
-
-        IEnumerable<Guid?> foundAnalysisIds = await permissionAssignmentRepository
-            .GetPermissionAssignmentsAE<AnalysisPermission, Guid>(PermissionKind.Analysis, principalIds, analysisIds, cancellationToken)
-            .Where(x => x.IsEnabledBy(enablers))
-            .Where(Matches)
-            .Select(static x => x.SubjectId)
-            .ToArrayAsync(cancellationToken: cancellationToken);
-
-        return foundAnalysisIds.Contains(null) ? analysisIds : analysisIds.Intersect(foundAnalysisIds.Cast<Guid>()).ToArray();
-    }
-
     public Task CheckCanInvokeAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
     {
         return CoreCheckCanDoStuffAsync<AnalysisPermission, Guid>(
-            PermissionKind.Analysis, static x => x.Permission.CanInvoke, CannotInvokeAnalysisException, null, cancellationToken
+            PermissionKind.Analysis, static x => x.Permission.CanInvoke, CannotInvokeAnalysisException, [ analysisId ], cancellationToken
         );
     }
 

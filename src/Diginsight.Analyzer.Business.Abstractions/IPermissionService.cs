@@ -4,9 +4,9 @@ public interface IPermissionService
 {
     Task CheckCanStartAnalysisAsync(CancellationToken cancellationToken);
 
-    Task CheckCanReadAnalysisAsync(Guid analysisId, CancellationToken cancellationToken);
+    Task CheckCanDequeueExecutionAsync(Guid? executionId, CancellationToken cancellationToken);
 
-    Task<IEnumerable<Guid>> FilterReadableAnalysesAsync(IEnumerable<Guid> analysisIds, CancellationToken cancellationToken);
+    Task CheckCanReadAnalysisAsync(Guid analysisId, CancellationToken cancellationToken);
 
     Task CheckCanInvokeAnalysisAsync(Guid analysisId, CancellationToken cancellationToken);
 

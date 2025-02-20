@@ -61,10 +61,11 @@ public class OrchestratorAnalysisController : AnalysisController
         );
     }
 
-    // TODO Check Dequeue permission
     [HttpPost("execution")]
-    public IActionResult Dequeue()
+    public async Task<IActionResult> Dequeue()
     {
+        await permissionService.CheckCanDequeueExecutionAsync(null, HttpContext.RequestAborted);
+
         dequeuerService.TriggerDequeue();
 
         return NoContent();

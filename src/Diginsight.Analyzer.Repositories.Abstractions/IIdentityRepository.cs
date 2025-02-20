@@ -2,5 +2,5 @@
 
 public interface IIdentityRepository
 {
-    Task<IEnumerable<Guid>> GetGroupsAsync(Guid objectId, bool isUser, CancellationToken cancellationToken);
+    Task<IEnumerable<Guid>> GetGroupIdsAsync(Guid objectId, bool isUser, CancellationToken cancellationToken);
 }
