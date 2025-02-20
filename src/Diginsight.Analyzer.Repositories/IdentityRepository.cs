@@ -18,6 +18,11 @@ internal sealed class IdentityRepository : IIdentityRepository
         graphServiceClient = repositoriesOptions0.GraphServiceClient;
     }
 
+    public (Guid ObjectId, Guid? MaybeAppId) GetMainPrincipal()
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<IEnumerable<Guid>> GetGroupIdsAsync(Guid objectId, bool isUser, CancellationToken cancellationToken)
     {
         GroupCollectionResponse groups;

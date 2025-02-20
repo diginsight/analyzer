@@ -12,13 +12,25 @@ public interface IAnalysisInfoRepository
 
     IDisposable? StartTimedProgressFlush(IAnalysisContextRO analysisContext);
 
-    Task<Page<AnalysisContextSnapshot>> GetAnalysisSnapshotsAsync(int page, int pageSize, bool withProgress, bool queued, CancellationToken cancellationToken);
+    Task<Page<AnalysisContextSnapshot>> GetAnalysisSnapshotsAsync(
+        int page,
+        int pageSize,
+        bool withProgress,
+        bool queued,
+        Func<IQueryable<AnalysisContextSnapshot>, CancellationToken, Task<IQueryable<AnalysisContextSnapshot>>> whereCanReadAsync,
+        CancellationToken cancellationToken
+    );
 
     Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(Guid executionId, bool withProgress, CancellationToken cancellationToken);
 
     Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(AnalysisCoord analysisCoord, bool withProgress, CancellationToken cancellationToken);
 
-    IAsyncEnumerable<AnalysisContextSnapshot> GetAnalysisSnapshotsAE(Guid analysisId, bool withProgress, CancellationToken cancellationToken);
+    IAsyncEnumerable<AnalysisContextSnapshot> GetAnalysisSnapshotsAE(
+        Guid analysisId,
+        bool withProgress,
+        Func<IQueryable<AnalysisContextSnapshot>, CancellationToken, Task<IQueryable<AnalysisContextSnapshot>>> whereCanReadAsync,
+        CancellationToken cancellationToken
+    );
 
     IAsyncEnumerable<AnalysisContextSnapshot> GetAllQueuedAnalysisSnapshotsAE(CancellationToken cancellationToken);
 }

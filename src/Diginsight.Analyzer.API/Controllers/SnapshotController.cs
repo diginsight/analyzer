@@ -10,20 +10,16 @@ public sealed class SnapshotController : ControllerBase
 {
     private readonly ISnapshotService snapshotService;
     private readonly IWaitingService waitingService;
-    private readonly IPermissionService permissionService;
 
     public SnapshotController(
         ISnapshotService snapshotService,
-        IWaitingService waitingService,
-        IPermissionService permissionService
+        IWaitingService waitingService
     )
     {
         this.snapshotService = snapshotService;
         this.waitingService = waitingService;
-        this.permissionService = permissionService;
     }
 
-    // TODO Filter by Read permissions
     [HttpGet("analysis")]
     public async Task<IActionResult> GetSnapshots(
         [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] bool skipProgress, [FromQuery] bool queued
@@ -53,8 +49,6 @@ public sealed class SnapshotController : ControllerBase
         {
             throw AnalysisExceptions.NoSuchAnalysis;
         }
-
-        await permissionService.CheckCanReadAnalysisAsync(analysisId, cancellationToken);
         return Ok(snapshots);
     }
 

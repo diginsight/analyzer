@@ -47,8 +47,6 @@ public class AgentAnalysisController : AnalysisController
     {
         CancellationToken cancellationToken = HttpContext.RequestAborted;
 
-        await permissionService.CheckCanDequeueExecutionAsync(executionId, cancellationToken);
-
         (Guid analysisId, int attempt) = await analysisService.DequeueAsync(executionId, cancellationToken);
         return Accepted(new ExtendedAnalysisCoord(executionId, analysisId, attempt));
     }

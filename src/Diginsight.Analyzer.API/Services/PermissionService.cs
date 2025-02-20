@@ -2,6 +2,7 @@
 using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Entities.Permissions;
 using Diginsight.Analyzer.Repositories;
+using Diginsight.Analyzer.Repositories.Models;
 using Microsoft.Identity.Web;
 using System.Net;
 using System.Security.Claims;
@@ -19,6 +20,9 @@ internal sealed class PermissionService : IPermissionService
 
     private static readonly AnalysisException BadAzpacrClaimException =
         new ("Authentication method claim is missing or malformed", HttpStatusCode.Unauthorized, "BadAzpacrClaim");
+
+    private static readonly AnalysisException BadAzpClaimException =
+        new ("App id claim is missing or malformed", HttpStatusCode.Unauthorized, "BadAzpClaim");
 
     private static readonly AnalysisException CannotStartAnalysisException =
         new ("Cannot start a new analysis", HttpStatusCode.Forbidden, "CannotStartAnalysis");
@@ -82,7 +86,7 @@ internal sealed class PermissionService : IPermissionService
         ISet<string> rawPermissions = new HashSet<string>(scopes.Concat(roles));
         if (rawPermissions.Contains("Analyses.Start"))
         {
-            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.Start, null));
+            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.Start));
         }
         if (rawPermissions.Contains("Analyses.Read"))
         {
@@ -90,7 +94,7 @@ internal sealed class PermissionService : IPermissionService
         }
         if (rawPermissions.Contains("Analyses.ReadAll"))
         {
-            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.Read, null));
+            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.Read));
         }
         if (rawPermissions.Contains("Analyses.Invoke"))
         {
@@ -98,7 +102,7 @@ internal sealed class PermissionService : IPermissionService
         }
         if (rawPermissions.Contains("Analyses.InvokeAll"))
         {
-            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.ReadAndInvoke, null));
+            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.ReadAndInvoke));
         }
         if (rawPermissions.Contains("Permissions.ManageAll"))
         {
@@ -118,12 +122,12 @@ internal sealed class PermissionService : IPermissionService
         public required IEnumerable<IPermissionAssignment> StaticAssignments { get; init; }
     }
 
-    private (Guid ObjectId, bool IsUser) GetMainPrincipal()
+    private (Guid ObjectId, Guid? MaybeAppId) GetMainPrincipal()
     {
         HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
         if (httpContext.Items.TryGetValue(MainPrincipalItemKey, out object? rawMainPrincipal))
         {
-            return (ValueTuple<Guid, bool>)rawMainPrincipal!;
+            return (ValueTuple<Guid, Guid?>)rawMainPrincipal!;
         }
 
         ClaimsPrincipal user = httpContext.User ?? throw UnauthenticatedException;
@@ -143,12 +147,25 @@ internal sealed class PermissionService : IPermissionService
             _ => throw BadAzpacrClaimException,
         };
 
-        (Guid, bool) mainPrincipal = (objectId, isUser);
+        Guid? maybeAppId;
+        if (isUser)
+        {
+            maybeAppId = null;
+        }
+        else
+        {
+            Claim appIdClaim = user.FindFirst("azp") ?? user.FindFirst("Appid") ?? throw BadAzpClaimException;
+            if (!Guid.TryParse(appIdClaim.Value, out Guid appId))
+                throw BadAzpClaimException;
+            maybeAppId = appId;
+        }
+
+        (Guid, Guid?) mainPrincipal = (objectId, maybeAppId);
         httpContext.Items[MainPrincipalItemKey] = mainPrincipal;
         return mainPrincipal;
     }
 
-    private async Task<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken)
+    private async ValueTask<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken)
     {
         HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
         if (httpContext.Items.TryGetValue(PrincipalIdsItemKey, out object? rawPrincipalIds))
@@ -156,90 +173,136 @@ internal sealed class PermissionService : IPermissionService
             return (IEnumerable<Guid>)rawPrincipalIds!;
         }
 
-        (Guid objectId, bool isUser) = GetMainPrincipal();
+        (Guid objectId, Guid? appId) = GetMainPrincipal();
 
-        IEnumerable<Guid> principalIds = (await identityRepository.GetGroupIdsAsync(objectId, isUser, cancellationToken)).Prepend(objectId).ToArray();
+        IEnumerable<Guid> principalIds = (await identityRepository.GetGroupIdsAsync(objectId, appId is null, cancellationToken)).Prepend(objectId).ToArray();
         httpContext.Items[PrincipalIdsItemKey] = principalIds;
         return principalIds;
     }
 
     public Task CheckCanStartAnalysisAsync(CancellationToken cancellationToken)
     {
-        return CoreCheckCanDoStuffAsync<AnalysisPermission, Guid>(
-            PermissionKind.Analysis, static x => x.Permission.CanStart, CannotStartAnalysisException, null, cancellationToken
+        return CheckCanDoStuffAsync<AnalysisPermission>(
+            PermissionKind.Analysis, static x => x.Permission.CanStart, CannotStartAnalysisException, cancellationToken
         );
     }
 
-    public async Task CheckCanDequeueExecutionAsync(Guid? executionId, CancellationToken cancellationToken)
+    public async Task CheckCanDequeueExecutionsAsync(CancellationToken cancellationToken)
     {
-        if (executionId is null)
+        if (GetMainPrincipal() is not (_, { } appId))
         {
-            (Guid objectId, bool isUser) = GetMainPrincipal();
-            if (isUser) // TODO Validate objectId equal to self
-            {
-                throw CannotDequeueExecutionsException;
-            }
-
-            return;
+            // TODO Validate appId equal to self
+            throw CannotDequeueExecutionsException;
         }
-
-        throw new NotImplementedException();
     }
 
-    public Task CheckCanReadAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
+    public Task CheckCanDequeueExecutionAsync(
+        IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> assignments, CancellationToken cancellationToken
+    )
     {
-        return CoreCheckCanDoStuffAsync<AnalysisPermission, Guid>(
-            PermissionKind.Analysis, static x => x.Permission.CanRead, CannotReadAnalysisException, [ analysisId ], cancellationToken
+        return CheckCanDoStuffAsync(
+            PermissionKind.Analysis, static x => x.Permission.CanInvoke, assignments, CannotStartAnalysisException, cancellationToken
         );
     }
 
-    public Task CheckCanInvokeAnalysisAsync(Guid analysisId, CancellationToken cancellationToken)
+    public Task CheckCanReadAnalysisAsync(
+        IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> assignments, CancellationToken cancellationToken
+    )
     {
-        return CoreCheckCanDoStuffAsync<AnalysisPermission, Guid>(
-            PermissionKind.Analysis, static x => x.Permission.CanInvoke, CannotInvokeAnalysisException, [ analysisId ], cancellationToken
+        return CheckCanDoStuffAsync(
+            PermissionKind.Analysis, static x => x.Permission.CanRead, assignments, CannotReadAnalysisException, cancellationToken
         );
+    }
+
+    public Task CheckCanInvokeAnalysisAsync(
+        IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> assignments, CancellationToken cancellationToken
+    )
+    {
+        return CheckCanDoStuffAsync(
+            PermissionKind.Analysis, static x => x.Permission.CanInvoke, assignments, CannotInvokeAnalysisException, cancellationToken
+        );
+    }
+
+    public async Task<IQueryable<AnalysisContextSnapshot>> WhereCanReadAnalysisAsync(
+        IQueryable<AnalysisContextSnapshot> queryable, CancellationToken cancellationToken
+    )
+    {
+        return await CoreCheckCanDoStuffAsync<AnalysisPermission>(PermissionKind.Analysis, static x => x.Permission.CanRead, cancellationToken) is var (_, principalIds)
+            ? queryable.Where(
+                x => x.PermissionAssignmentsQO.Any(
+                    pa => (pa.PrincipalId == null || principalIds.Contains(pa.PrincipalId.Value)) &&
+                        (pa.Permission == nameof(AnalysisPermission.Read) || pa.Permission == nameof(AnalysisPermission.ReadAndInvoke))
+                )
+            )
+            : queryable;
     }
 
     public Task CheckCanManagePermissionsAsync(CancellationToken cancellationToken)
     {
-        return CoreCheckCanDoStuffAsync<PermissionPermission, ValueTuple>(
-            PermissionKind.Permission, static x => x.Permission.CanManage, CannotManagePermissionsException, null, cancellationToken
+        return CheckCanDoStuffAsync<PermissionPermission>(
+            PermissionKind.Permission, static x => x.Permission.CanManage, CannotManagePermissionsException, cancellationToken
         );
     }
 
     public Task CheckCanManagePluginsAsync(CancellationToken cancellationToken)
     {
-        return CoreCheckCanDoStuffAsync<PluginPermission, ValueTuple>(
-            PermissionKind.Plugin, static x => x.Permission.CanManage, CannotManagePluginsException, null, cancellationToken
+        return CheckCanDoStuffAsync<PluginPermission>(
+            PermissionKind.Plugin, static x => x.Permission.CanManage, CannotManagePluginsException, cancellationToken
         );
     }
 
-    private async Task CoreCheckCanDoStuffAsync<TPermission, TSubject>(
+    private async Task<(IEnumerable<IPermissionAssignmentEnabler> Enablers, IEnumerable<Guid> PrincipalId)?> CoreCheckCanDoStuffAsync<TPermission>(
         PermissionKind kind,
         Func<IPermissionAssignment<TPermission>, bool> matches,
-        Exception exception,
-        IEnumerable<TSubject>? subjectIds,
         CancellationToken cancellationToken
     )
         where TPermission : struct, IPermission<TPermission>
-        where TSubject : struct, IEquatable<TSubject>
     {
         IEnumerable<IPermissionAssignmentEnabler> enablers = GetPermissionAssignmentEnablers();
         if (enablers.SelectMany(static x => x.StaticAssignments).OfType<IPermissionAssignment<TPermission>>().Any(matches))
         {
-            return;
+            return null;
         }
 
         IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
 
         if (await permissionAssignmentRepository
-            .GetPermissionAssignmentsAE<TPermission, TSubject>(kind, principalIds, subjectIds, cancellationToken)
-            .Where(x => x.IsEnabledBy(enablers))
+            .GetPermissionAssignmentsAE<TPermission>(kind, principalIds, cancellationToken)
             .AnyAsync(matches, cancellationToken))
         {
-            return;
+            return null;
         }
 
-        throw exception;
+        return (enablers, principalIds);
+    }
+
+    private async Task CheckCanDoStuffAsync<TPermission>(
+        PermissionKind kind,
+        Func<IPermissionAssignment<TPermission>, bool> matches,
+        AnalysisException exception,
+        CancellationToken cancellationToken
+    )
+        where TPermission : struct, IPermission<TPermission>
+    {
+        if (await CoreCheckCanDoStuffAsync(kind, matches, cancellationToken) is not null)
+        {
+            throw exception;
+        }
+    }
+
+    private async Task CheckCanDoStuffAsync<TPermission>(
+        PermissionKind kind,
+        Func<IPermissionAssignment<TPermission>, bool> matches,
+        IEnumerable<ISpecificPermissionAssignment<TPermission>> assignments,
+        AnalysisException exception,
+        CancellationToken cancellationToken
+    )
+        where TPermission : struct, IPermission<TPermission>
+    {
+        if (await CoreCheckCanDoStuffAsync(kind, matches, cancellationToken) is var (enablers, _) &&
+            !assignments.Any(x => x.IsEnabledBy(enablers)))
+        {
+            throw exception;
+        }
     }
 }

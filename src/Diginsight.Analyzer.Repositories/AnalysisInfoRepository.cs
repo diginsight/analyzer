@@ -58,13 +58,19 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
     }
 
     public async Task<Page<AnalysisContextSnapshot>> GetAnalysisSnapshotsAsync(
-        int page, int pageSize, bool withProgress, bool queued, CancellationToken cancellationToken
+        int page,
+        int pageSize,
+        bool withProgress,
+        bool queued,
+        Func<IQueryable<AnalysisContextSnapshot>, CancellationToken, Task<IQueryable<AnalysisContextSnapshot>>> whereCanReadAsync,
+        CancellationToken cancellationToken
     )
     {
         LogMessages.GettingAnalysisSnapshots(logger, page, pageSize);
 
         IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
             .Where(static x => x.Kind == ExecutionKind.Analysis);
+        queryable = await whereCanReadAsync(queryable, cancellationToken);
         queryable = queued
             ? queryable
                 .Where(static x => x.Status == TimeBoundStatus.Pending)
@@ -157,14 +163,18 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
     }
 
     public async IAsyncEnumerable<AnalysisContextSnapshot> GetAnalysisSnapshotsAE(
-        Guid analysisId, bool withProgress, [EnumeratorCancellation] CancellationToken cancellationToken
+        Guid analysisId,
+        bool withProgress,
+        Func<IQueryable<AnalysisContextSnapshot>, CancellationToken, Task<IQueryable<AnalysisContextSnapshot>>> whereCanReadAsync,
+        [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
         LogMessages.GettingAnalysisSnapshots(logger, analysisId);
 
         IQueryable<AnalysisContextSnapshot> queryable = analysisContainer.GetItemLinqQueryable<AnalysisContextSnapshot>()
-            .Where(x => x.Kind == ExecutionKind.Analysis && x.AnalysisId == analysisId)
-            .OrderByDescending(static x => x.Attempt);
+            .Where(x => x.Kind == ExecutionKind.Analysis && x.AnalysisId == analysisId);
+        queryable = await whereCanReadAsync(queryable, cancellationToken);
+        queryable = queryable.OrderByDescending(static x => x.Attempt);
 
         using FeedIterator<AnalysisContextSnapshot> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)

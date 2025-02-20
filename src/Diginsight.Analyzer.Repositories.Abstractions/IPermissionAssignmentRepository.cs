@@ -4,9 +4,8 @@ namespace Diginsight.Analyzer.Repositories;
 
 public interface IPermissionAssignmentRepository
 {
-    IAsyncEnumerable<IPermissionAssignment<TPermissions, TSubject>> GetPermissionAssignmentsAE<TPermissions, TSubject>(
-        PermissionKind kind, IEnumerable<Guid> principalIds, IEnumerable<TSubject>? subjectIds, CancellationToken cancellationToken
+    IAsyncEnumerable<IPermissionAssignment<TPermissions>> GetPermissionAssignmentsAE<TPermissions>(
+        PermissionKind kind, IEnumerable<Guid> principalIds, CancellationToken cancellationToken
     )
-        where TPermissions : struct, IPermission<TPermissions>
-        where TSubject : struct, IEquatable<TSubject>;
+        where TPermissions : struct, IPermission<TPermissions>;
 }

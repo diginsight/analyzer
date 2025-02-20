@@ -64,7 +64,7 @@ public class OrchestratorAnalysisController : AnalysisController
     [HttpPost("execution")]
     public async Task<IActionResult> Dequeue()
     {
-        await permissionService.CheckCanDequeueExecutionAsync(null, HttpContext.RequestAborted);
+        await permissionService.CheckCanDequeueExecutionsAsync(HttpContext.RequestAborted);
 
         dequeuerService.TriggerDequeue();
 

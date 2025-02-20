@@ -5,6 +5,7 @@ using Diginsight.Analyzer.Business.Models;
 using Diginsight.Analyzer.Common;
 using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Repositories.Models;
+using Diginsight.Json;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;

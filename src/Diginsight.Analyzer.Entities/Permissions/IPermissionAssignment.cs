@@ -10,11 +10,7 @@ public interface IPermissionAssignment
     PermissionKind Kind { get; }
 
     [JsonProperty("principalId")]
-    sealed Guid? PrincipalId => throw new NotSupportedException();
-
-    bool NeedsEnabler();
-
-    bool IsEnabledBy(IEnumerable<IPermissionAssignmentEnabler> enablers);
+    Guid? PrincipalId { get; }
 
     private sealed class Converter : JsonConverter
     {
@@ -44,35 +40,4 @@ public interface IPermissionAssignment<out TPermission> : IPermissionAssignment
     where TPermission : struct, IPermission<TPermission>
 {
     TPermission Permission { get; }
-
-    bool IPermissionAssignment.IsEnabledBy(IEnumerable<IPermissionAssignmentEnabler> enablers)
-    {
-        return !NeedsEnabler() || enablers.Any(x => x is IPermissionAssignmentEnabler<TPermission> enabler0 && enabler0.Permission >> Permission);
-    }
-}
-
-public interface IPermissionAssignment<out TPermission, TSubject> : IPermissionAssignment<TPermission>
-    where TPermission : struct, IPermission<TPermission>
-    where TSubject : struct, IEquatable<TSubject>
-{
-    TSubject? SubjectId { get; }
-
-    public static bool operator >> (IPermissionAssignment<TPermission, TSubject> left, IPermissionAssignment right)
-    {
-        if (right is not IPermissionAssignment<TPermission, TSubject> other)
-            return false;
-
-        switch (left.SubjectId, other.SubjectId)
-        {
-            case (null, null):
-            case ({ } subjectId, { } otherSubjectId) when subjectId.Equals(otherSubjectId):
-                return left.Permission >> other.Permission;
-
-            case (null, not null):
-                return left.Permission == other.Permission;
-
-            default:
-                return false;
-        }
-    }
 }

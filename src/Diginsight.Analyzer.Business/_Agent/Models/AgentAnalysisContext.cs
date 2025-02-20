@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business.Models;
 
@@ -31,6 +32,8 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
 
     public TimeBoundStatus Status { get; set; }
 
+    public IEnumerable<AnalysisSpecificPermissionAssignment> PermissionAssignments { get; }
+
     public AgentAnalysisContext(
         Guid executionId,
         AnalysisCoord analysisCoord,
@@ -40,7 +43,8 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
         DateTime? queuedAt,
         string agentPool,
         DateTime startedAt,
-        string agentName
+        string agentName,
+        Guid principalId
     )
         : base(new ExecutionCoord(ExecutionKind.Analysis, executionId))
     {
@@ -55,6 +59,7 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
         AgentPool = agentPool;
         StartedAt = startedAt;
         AgentName = agentName;
+        PermissionAssignments = [ new AnalysisSpecificPermissionAssignment(AnalysisPermission.ReadAndInvoke, principalId) ];
     }
 
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];

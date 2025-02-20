@@ -96,7 +96,7 @@ internal sealed class OrchestratorAnalysisService : IOrchestratorAnalysisService
             throw AnalysisExceptions.NoSuchAnalysis;
         }
 
-        await permissionService.CheckCanInvokeAnalysisAsync(analysisId, cancellationToken);
+        await permissionService.CheckCanInvokeAnalysisAsync(snapshot.PermissionAssignments, cancellationToken);
 
         if (snapshot.FinishedAt is not null)
         {

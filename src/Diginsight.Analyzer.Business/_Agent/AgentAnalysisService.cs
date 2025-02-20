@@ -13,7 +13,7 @@ namespace Diginsight.Analyzer.Business;
 
 internal sealed partial class AgentAnalysisService : IAgentAnalysisService
 {
-    public static readonly AnalysisException NotPendingException =
+    private static readonly AnalysisException NotPendingException =
         new ("Execution is not pending", HttpStatusCode.Conflict, "NotPending");
 
     private readonly ILogger logger;
@@ -84,7 +84,7 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
             throw AnalysisExceptions.NoSuchAnalysis;
         }
 
-        await permissionService.CheckCanInvokeAnalysisAsync(analysisId, cancellationToken);
+        await permissionService.CheckCanInvokeAnalysisAsync(snapshot.PermissionAssignments, cancellationToken);
 
         if (snapshot.FinishedAt is null)
         {
@@ -110,6 +110,8 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
         {
             throw AnalysisExceptions.NoSuchExecution;
         }
+
+        await permissionService.CheckCanDequeueExecutionAsync(snapshot.PermissionAssignments, cancellationToken);
 
         if (snapshot.StartedAt is not null)
         {
@@ -152,12 +154,14 @@ internal sealed partial class AgentAnalysisService : IAgentAnalysisService
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private IAsyncEnumerable<ExtendedAnalysisCoord> CoreAbortExecutionAE(Guid? executionId, CancellationToken cancellationToken)
     {
-        return executionService.AbortAE(
-                ExecutionKind.Analysis,
-                executionId,
-                (_, _, detail, ct) => permissionService.CheckCanInvokeAnalysisAsync(((AnalysisCoord)detail).Id, ct),
-                cancellationToken
-            )
+        async Task CheckCanAbortAsync(ExecutionKind executionKind, Guid executionId0, object detail, CancellationToken ct)
+        {
+            AnalysisContextSnapshot snapshot = (await snapshotService.GetAnalysisAsync(executionId0, false, false, ct))!;
+            await permissionService.CheckCanInvokeAnalysisAsync(snapshot.PermissionAssignments, ct);
+        }
+
+        return executionService
+            .AbortAE(ExecutionKind.Analysis, executionId, CheckCanAbortAsync, cancellationToken)
             .Select(
                 static x =>
                 {

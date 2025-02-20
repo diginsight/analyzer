@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics.CodeAnalysis;
 
@@ -38,13 +39,25 @@ public sealed class AnalysisContextSnapshot : ExecutionContextSnapshot
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public JObject? Progress { get; set; }
 
+    public IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> PermissionAssignments { get; }
+
+    [JsonProperty("permissionAssignments")]
+    public IEnumerable<SpecificPermissionAssignmentQO> PermissionAssignmentsQO => throw new NotSupportedException();
+
     [JsonConstructor]
-    internal AnalysisContextSnapshot(Guid id, Guid analysisId, int attempt, IEnumerable<StepHistory> steps)
+    internal AnalysisContextSnapshot(
+        Guid id,
+        Guid analysisId,
+        int attempt,
+        IEnumerable<StepHistory> steps,
+        IEnumerable<AnalysisSpecificPermissionAssignment> permissionAssignments
+    )
         : base(id)
     {
         AnalysisId = analysisId;
         Attempt = attempt;
         AnalysisCoord = new AnalysisCoord(analysisId, attempt);
         Steps = steps;
+        PermissionAssignments = permissionAssignments;
     }
 }

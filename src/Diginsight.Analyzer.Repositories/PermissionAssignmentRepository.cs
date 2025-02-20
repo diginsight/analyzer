@@ -29,29 +29,23 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
         repositoriesOptions.Dispose();
     }
 
-    public async IAsyncEnumerable<IPermissionAssignment<TPermissions, TSubject>> GetPermissionAssignmentsAE<TPermissions, TSubject>(
-        PermissionKind kind, IEnumerable<Guid> principalIds, IEnumerable<TSubject>? subjectIds, [EnumeratorCancellation] CancellationToken cancellationToken
+    public async IAsyncEnumerable<IPermissionAssignment<TPermissions>> GetPermissionAssignmentsAE<TPermissions>(
+        PermissionKind kind, IEnumerable<Guid> principalIds, [EnumeratorCancellation] CancellationToken cancellationToken
     )
         where TPermissions : struct, IPermission<TPermissions>
-        where TSubject : struct, IEquatable<TSubject>
     {
         LogMessages.GettingPermissionAssignments(logger, kind, principalIds);
 
-        IQueryable<IPermissionAssignment<TPermissions, TSubject>> queryable = permissionAssignmentContainer
-            .GetItemLinqQueryable<IPermissionAssignment<TPermissions, TSubject>>(
+        IQueryable<IPermissionAssignment<TPermissions>> queryable = permissionAssignmentContainer
+            .GetItemLinqQueryable<IPermissionAssignment<TPermissions>>(
                 requestOptions: new QueryRequestOptions() { PartitionKey = new PartitionKey(kind.ToString("G")) }
             )
             .Where(x => x.PrincipalId == null || principalIds.Contains(x.PrincipalId!.Value));
 
-        if (subjectIds is not null)
-        {
-            queryable = queryable.Where(x => x.SubjectId == null || subjectIds.Contains(x.SubjectId!.Value));
-        }
-
-        using FeedIterator<IPermissionAssignment<TPermissions, TSubject>> feedIterator = Log(queryable).ToFeedIterator();
+        using FeedIterator<IPermissionAssignment<TPermissions>> feedIterator = Log(queryable).ToFeedIterator();
         while (feedIterator.HasMoreResults)
         {
-            foreach (IPermissionAssignment<TPermissions, TSubject> assignment in await feedIterator.ReadNextAsync(cancellationToken))
+            foreach (IPermissionAssignment<TPermissions> assignment in await feedIterator.ReadNextAsync(cancellationToken))
             {
                 yield return assignment;
             }

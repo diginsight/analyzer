@@ -36,11 +36,12 @@ internal sealed class PayloadService : IAgentPayloadService
 
     public async Task<bool> TryWritePayloadAsync(AnalysisCoord coord, string label, NamedEncodedStream encodedStream, CancellationToken cancellationToken)
     {
-        if (await snapshotService.GetAnalysisAsync(coord, false, false, cancellationToken) is not { AnalysisCoord: var finalCoord })
+        if (await snapshotService.GetAnalysisAsync(coord, false, false, cancellationToken) is not { } snapshot)
             return false;
 
-        await permissionService.CheckCanInvokeAnalysisAsync(finalCoord.Id, cancellationToken);
+        await permissionService.CheckCanInvokeAnalysisAsync(snapshot.PermissionAssignments, cancellationToken);
 
+        AnalysisCoord finalCoord = snapshot.AnalysisCoord;
         PayloadDescriptor? descriptor = await fileRepository.GetPayloadDescriptorsAE(finalCoord, cancellationToken)
             .FirstOrDefaultAsync(x => x.Label == label, cancellationToken);
         switch (descriptor?.IsOutput)

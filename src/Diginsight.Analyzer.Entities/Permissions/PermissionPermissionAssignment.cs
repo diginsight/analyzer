@@ -2,21 +2,19 @@
 
 namespace Diginsight.Analyzer.Entities.Permissions;
 
-public readonly struct PermissionPermissionAssignment : IPermissionAssignment<PermissionPermission, ValueTuple>
+public sealed class PermissionPermissionAssignment : IPermissionAssignment<PermissionPermission>
 {
     [JsonProperty("kind")]
     public PermissionKind Kind => PermissionKind.Permission;
 
     public PermissionPermission Permission { get; }
 
-    [JsonProperty("subjectId")]
-    public ValueTuple? SubjectId => null;
+    public Guid? PrincipalId { get; }
 
     [JsonConstructor]
-    public PermissionPermissionAssignment(PermissionPermission permission)
+    public PermissionPermissionAssignment(PermissionPermission permission, Guid? principalId = null)
     {
         Permission = permission;
+        PrincipalId = principalId;
     }
-
-    public bool NeedsEnabler() => false;
 }

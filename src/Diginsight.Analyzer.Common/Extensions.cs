@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.ComponentModel;
 using System.Text;
 
@@ -8,34 +7,6 @@ namespace Diginsight.Analyzer.Common;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class Extensions
 {
-    public static bool TryToObject<T>(this JToken jtoken, out T? obj, JsonSerializer? serializer = null)
-    {
-        try
-        {
-            obj = jtoken.ToObject<T>(serializer ?? JsonSerializer.CreateDefault());
-            return true;
-        }
-        catch (Exception)
-        {
-            obj = default;
-            return false;
-        }
-    }
-
-    public static bool TryToObject(this JToken jtoken, Type type, out object? obj, JsonSerializer? serializer = null)
-    {
-        try
-        {
-            obj = jtoken.ToObject(type, serializer ?? JsonSerializer.CreateDefault());
-            return true;
-        }
-        catch (Exception)
-        {
-            obj = null;
-            return false;
-        }
-    }
-
     public static void Serialize(
         this JsonSerializer serializer, Stream stream, object? obj, Type? objectType = null, Encoding? encoding = null
     )
