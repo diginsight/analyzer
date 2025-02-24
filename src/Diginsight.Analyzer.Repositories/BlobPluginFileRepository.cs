@@ -14,7 +14,7 @@ internal sealed class BlobPluginFileRepository : IPluginFileRepository
         containerClient = repositoriesOptions0.BlobServiceClient.GetBlobContainerClient("plugins");
     }
 
-    public IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetDefaultPluginsAE()
+    public IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetSystemPluginsAE()
     {
         return containerClient.GetBlobsAsync()
             .Select(static item => item.Name.Split('/'))

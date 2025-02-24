@@ -4,5 +4,5 @@ public interface IIdentityRepository
 {
     (Guid ObjectId, Guid? MaybeAppId) GetMainPrincipal();
 
-    Task<IEnumerable<Guid>> GetGroupIdsAsync(Guid objectId, bool isUser, CancellationToken cancellationToken);
+    ValueTask<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken);
 }

@@ -6,7 +6,7 @@ public interface IPluginService : IDisposable
 {
     IEnumerable<Plugin> GetAll();
 
-    Task RegisterDefaultsAsync(CancellationToken cancellationToken);
+    Task RegisterSystemAsync(CancellationToken cancellationToken);
 
     Plugin Register(IReadOnlyCollection<Stream> assemblyStreams);
 

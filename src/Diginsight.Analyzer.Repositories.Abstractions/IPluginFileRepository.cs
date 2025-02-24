@@ -2,5 +2,5 @@
 
 public interface IPluginFileRepository
 {
-    IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetDefaultPluginsAE();
+    IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetSystemPluginsAE();
 }

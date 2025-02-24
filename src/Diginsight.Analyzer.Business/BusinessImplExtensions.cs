@@ -105,7 +105,7 @@ public static class BusinessImplExtensions
             );
 
             applicationLifetime.ApplicationStarted.Register(
-                () => { pluginService.RegisterDefaultsAsync(applicationLifetime.ApplicationStopping).GetAwaiter().GetResult(); }
+                () => { pluginService.RegisterSystemAsync(applicationLifetime.ApplicationStopping).GetAwaiter().GetResult(); }
             );
         }
     }

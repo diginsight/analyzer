@@ -9,7 +9,7 @@ internal sealed class PhysicalPluginFileRepository : IPluginFileRepository
         this.rootPath = rootPath;
     }
 
-    public IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetDefaultPluginsAE()
+    public IAsyncEnumerable<IAsyncGrouping<Guid, Stream>> GetSystemPluginsAE()
     {
         return new DirectoryInfo(rootPath)
             .EnumerateDirectories()

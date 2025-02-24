@@ -10,7 +10,7 @@ namespace Diginsight.Analyzer.Business;
 
 internal sealed partial class PluginService : IPluginService
 {
-    private static readonly AnalysisException DefaultPluginException = new ("Cannot unregister default plugin", HttpStatusCode.Conflict, "DefaultPlugin");
+    private static readonly AnalysisException SystemPluginException = new ("Cannot unregister system plugin", HttpStatusCode.Conflict, "SystemPlugin");
 
     private readonly ILogger<PluginService> logger;
     private readonly IServiceProvider rootServiceProvider;
@@ -36,13 +36,13 @@ internal sealed partial class PluginService : IPluginService
     {
         lock (@lock)
         {
-            return pluginHolders.Select(static x => new Plugin(x.Key, x.Value.IsDefault, x.Value.AnalyzerStepTemplates));
+            return pluginHolders.Select(static x => new Plugin(x.Key, x.Value.IsSystem, x.Value.AnalyzerStepTemplates));
         }
     }
 
-    public async Task RegisterDefaultsAsync(CancellationToken cancellationToken)
+    public async Task RegisterSystemAsync(CancellationToken cancellationToken)
     {
-        IEnumerable<IAsyncGrouping<Guid, Stream>> groupings = await fileRepository.GetDefaultPluginsAE().ToArrayAsync(cancellationToken);
+        IEnumerable<IAsyncGrouping<Guid, Stream>> groupings = await fileRepository.GetSystemPluginsAE().ToArrayAsync(cancellationToken);
         foreach (IAsyncGrouping<Guid, Stream> grouping in groupings)
         {
             IReadOnlyCollection<Stream> assemblyStreams = await grouping.ToArrayAsync(cancellationToken);
@@ -66,11 +66,11 @@ internal sealed partial class PluginService : IPluginService
         return Register(assemblyStreams, ambientService.NewUlid(), false);
     }
 
-    private Plugin Register(IReadOnlyCollection<Stream> assemblyStreams, Guid pluginId, bool isDefault)
+    private Plugin Register(IReadOnlyCollection<Stream> assemblyStreams, Guid pluginId, bool isSystem)
     {
-        LogMessages.RegisteringPlugin(logger, pluginId, isDefault, assemblyStreams.Count);
+        LogMessages.RegisteringPlugin(logger, pluginId, isSystem, assemblyStreams.Count);
 
-        AssemblyLoadContext assemblyLoadContext = new PluginAssemblyLoadContext(pluginId);
+        AssemblyLoadContext assemblyLoadContext = new PluginAssemblyLoadContext(pluginId, isSystem);
         assemblyLoadContext.Unloading += _ => { LogMessages.PluginUnloading(logger, pluginId); };
 
         foreach (Stream assemblyStream in assemblyStreams)
@@ -97,11 +97,17 @@ internal sealed partial class PluginService : IPluginService
                 try
                 {
                     string stepTemplateName = stepTemplate.Name;
-                    if (existingAnalyzerStepTemplates.Contains(stepTemplateName) || !newAnalyzerStepTemplates.Add(stepTemplateName))
+                    if (existingAnalyzerStepTemplates.Contains(stepTemplateName))
                     {
-                        LogMessages.DuplicateAnalyzerStepTemplate(logger, pluginId, stepTemplateName);
+                        LogMessages.AnalyzerStepTemplateInAnotherPlugin(logger, stepTemplateName);
+                        continue;
+                    }
+
+                    if (!newAnalyzerStepTemplates.Add(stepTemplateName))
+                    {
+                        LogMessages.DuplicateAnalyzerStepTemplate(logger, stepTemplateName);
                         throw new AnalysisException(
-                            $"Duplicate analyzer step template '{stepTemplateName}'", HttpStatusCode.Conflict, "DuplicateAnalyzerStepTemplates"
+                            $"Duplicate analyzer step '{stepTemplateName}' in assembly", HttpStatusCode.BadRequest, "DuplicateAnalyzerStepTemplates"
                         );
                     }
                 }
@@ -112,20 +118,20 @@ internal sealed partial class PluginService : IPluginService
                 }
             }
 
-            pluginHolders[pluginId] = new PluginHolder(assemblyLoadContext, isDefault, newAnalyzerStepTemplates);
+            pluginHolders[pluginId] = new PluginHolder(assemblyLoadContext, isSystem, newAnalyzerStepTemplates);
         }
 
         LogMessages.PluginRegistered(logger, pluginId);
 
-        return new Plugin(pluginId, isDefault, newAnalyzerStepTemplates);
+        return new Plugin(pluginId, isSystem, newAnalyzerStepTemplates);
     }
 
-    private sealed record PluginHolder(AssemblyLoadContext AssemblyLoadContext, bool IsDefault, IEnumerable<string> AnalyzerStepTemplates);
+    private sealed record PluginHolder(AssemblyLoadContext AssemblyLoadContext, bool IsSystem, IEnumerable<string> AnalyzerStepTemplates);
 
     private sealed class PluginAssemblyLoadContext : AssemblyLoadContext
     {
-        public PluginAssemblyLoadContext(Guid pluginId)
-            : base($"Plugin {pluginId:D}", true) { }
+        public PluginAssemblyLoadContext(Guid pluginId, bool isSystem)
+            : base($"Plugin {pluginId:D} ({(isSystem ? "system" : "user")})", true) { }
     }
 
     public void Unregister(Guid pluginId)
@@ -137,9 +143,9 @@ internal sealed partial class PluginService : IPluginService
             {
                 return;
             }
-            if (pluginHolder.IsDefault)
+            if (pluginHolder.IsSystem)
             {
-                throw DefaultPluginException;
+                throw SystemPluginException;
             }
 
             pluginHolders.Remove(pluginId);
@@ -160,12 +166,14 @@ internal sealed partial class PluginService : IPluginService
     public IReadOnlyDictionary<string, IAnalyzerStepTemplate> CreateAnalyzerStepTemplates(IServiceProvider serviceProvider)
     {
         return CreateInstances<IAnalyzerStepTemplate>(serviceProvider)
+            .Where(static x => x.Plugin.AnalyzerStepTemplates.Contains(x.Instance.Name))
+            .Select(static x => x.Instance)
             .ToDictionary(static x => x.Name);
     }
 
     public IEnumerable<IEventSender> CreateEventSenders(IServiceProvider serviceProvider)
     {
-        return CreateInstances<IEventSender>(serviceProvider).ToArray();
+        return CreateInstances<IEventSender>(serviceProvider).Select(static x => x.Instance).ToArray();
     }
 
     public void Dispose()
@@ -183,15 +191,15 @@ internal sealed partial class PluginService : IPluginService
         }
     }
 
-    private IEnumerable<T> CreateInstances<T>(IServiceProvider serviceProvider)
+    private IEnumerable<(PluginHolder Plugin, T Instance)> CreateInstances<T>(IServiceProvider serviceProvider)
         where T : class
     {
-        IReadOnlyCollection<AssemblyLoadContext> assemblyLoadContexts;
+        IReadOnlyCollection<(PluginHolder Plugin, AssemblyLoadContext AssemblyLoadContext)> pairs;
         lock (@lock)
         {
-            assemblyLoadContexts = pluginHolders.Select(static x => x.Value.AssemblyLoadContext).ToArray();
+            pairs = pluginHolders.Values.Select(static plugin => (plugin, plugin.AssemblyLoadContext)).ToArray();
         }
-        return assemblyLoadContexts.SelectMany(x => CreateInstances<T>(serviceProvider, x));
+        return pairs.SelectMany(x => CreateInstances<T>(serviceProvider, x.AssemblyLoadContext).Select(instance => (x.Plugin, instance)));
     }
 
     private static IEnumerable<T> CreateInstances<T>(IServiceProvider serviceProvider, AssemblyLoadContext alc)
@@ -224,20 +232,21 @@ internal sealed partial class PluginService : IPluginService
         return alc.Assemblies
             .SelectMany(SafeGetExportedTypes)
             .Where(static t => t is { IsClass: true, IsAbstract: false, IsGenericType: false } && typeof(T).IsAssignableFrom(t))
+            .OrderBy(static t => t.FullName!)
             .Select(SafeCreate)
             .OfType<T>();
     }
 
     private static partial class LogMessages
     {
-        [LoggerMessage(0, LogLevel.Debug, "Registring default plugins")]
-        internal static partial void RegisteringDefaultPlugins(ILogger logger);
+        [LoggerMessage(0, LogLevel.Debug, "Registering system plugins")]
+        internal static partial void RegisteringSystemPlugins(ILogger logger);
 
-        [LoggerMessage(1, LogLevel.Debug, "Registring plugin {PluginId} (default? {IsDefault}) with {AssemblyCount} assemblies")]
-        internal static partial void RegisteringPlugin(ILogger logger, Guid pluginId, bool isDefault, int assemblyCount);
+        [LoggerMessage(1, LogLevel.Debug, "Registering plugin {PluginId} (system? {IsSystem}) with {AssemblyCount} assemblies")]
+        internal static partial void RegisteringPlugin(ILogger logger, Guid pluginId, bool isSystem, int assemblyCount);
 
-        [LoggerMessage(2, LogLevel.Warning, "Duplicate analyzer step {StepTemplateName} in plugin {PluginId}")]
-        internal static partial void DuplicateAnalyzerStepTemplate(ILogger logger, Guid pluginId, string stepTemplateName);
+        [LoggerMessage(2, LogLevel.Warning, "Duplicate analyzer step {StepTemplateName} in assembly")]
+        internal static partial void DuplicateAnalyzerStepTemplate(ILogger logger, string stepTemplateName);
 
         [LoggerMessage(3, LogLevel.Warning, "Bad assembly while registering plugin {PluginId}")]
         internal static partial void BadAssembly(ILogger logger, Guid? pluginId, Exception exception);
@@ -250,5 +259,8 @@ internal sealed partial class PluginService : IPluginService
 
         [LoggerMessage(6, LogLevel.Trace, "Plugin {PluginId} unloading")]
         internal static partial void PluginUnloading(ILogger logger, Guid pluginId);
+
+        [LoggerMessage(7, LogLevel.Information, "Analyzer step {StepTemplateName} already declared in another plugin")]
+        internal static partial void AnalyzerStepTemplateInAnotherPlugin(ILogger logger, string stepTemplateName);
     }
 }

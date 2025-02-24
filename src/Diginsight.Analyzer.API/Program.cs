@@ -81,7 +81,8 @@ internal static partial class Program
 
         services
             .AddTransient<GlobalExceptionMiddleware>()
-            .AddSingleton<IPermissionService, PermissionService>();
+            .AddSingleton<IPermissionService, PermissionService>()
+            .AddSingleton<ICallContextAccessor, CallContextAccessor>();
 
         services.AddHttpClient(typeof(AnalysisController).FullName!);
 

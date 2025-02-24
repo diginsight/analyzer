@@ -3,6 +3,8 @@ using Diginsight.Analyzer.Entities;
 using Diginsight.Analyzer.Entities.Permissions;
 using Diginsight.Analyzer.Repositories;
 using Diginsight.Analyzer.Repositories.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using System.Net;
 using System.Security.Claims;
@@ -12,18 +14,6 @@ namespace Diginsight.Analyzer.API.Services;
 // TODO Intercept 401 and 403 in orchestrator
 internal sealed class PermissionService : IPermissionService
 {
-    private static readonly AnalysisException UnauthenticatedException =
-        new ("Not authenticated", HttpStatusCode.Unauthorized, "Unauthenticated");
-
-    private static readonly AnalysisException BadOidClaimException =
-        new ("Object id claim is missing or malformed", HttpStatusCode.Unauthorized, "BadOidClaim");
-
-    private static readonly AnalysisException BadAzpacrClaimException =
-        new ("Authentication method claim is missing or malformed", HttpStatusCode.Unauthorized, "BadAzpacrClaim");
-
-    private static readonly AnalysisException BadAzpClaimException =
-        new ("App id claim is missing or malformed", HttpStatusCode.Unauthorized, "BadAzpClaim");
-
     private static readonly AnalysisException CannotStartAnalysisException =
         new ("Cannot start a new analysis", HttpStatusCode.Forbidden, "CannotStartAnalysis");
 
@@ -42,34 +32,36 @@ internal sealed class PermissionService : IPermissionService
     private static readonly AnalysisException CannotManagePluginsException =
         new ("Cannot manage plugins", HttpStatusCode.Forbidden, "CannotManagePlugins");
 
-    private static readonly object MainPrincipalItemKey = new ();
-    private static readonly object PrincipalIdsItemKey = new ();
     private static readonly object PermissionAssignmentEnablersItemKey = new ();
 
     private readonly IPermissionAssignmentRepository permissionAssignmentRepository;
     private readonly IIdentityRepository identityRepository;
-    private readonly IHttpContextAccessor httpContextAccessor;
+    private readonly ICallContextAccessor callContextAccessor;
+    private readonly Lazy<Guid> selfAppIdLazy;
+
+    private Guid SelfAppId => selfAppIdLazy.Value;
 
     public PermissionService(
         IPermissionAssignmentRepository permissionAssignmentRepository,
         IIdentityRepository identityRepository,
-        IHttpContextAccessor httpContextAccessor
+        ICallContextAccessor callContextAccessor,
+        IOptionsMonitor<JwtBearerOptions> jwtBearerOptionsMonitor
     )
     {
         this.permissionAssignmentRepository = permissionAssignmentRepository;
         this.identityRepository = identityRepository;
-        this.httpContextAccessor = httpContextAccessor;
+        this.callContextAccessor = callContextAccessor;
+        selfAppIdLazy = new Lazy<Guid>(() => Guid.Parse(jwtBearerOptionsMonitor.Get(JwtBearerDefaults.AuthenticationScheme).Audience!));
     }
 
     private IEnumerable<IPermissionAssignmentEnabler> GetPermissionAssignmentEnablers()
     {
-        HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
-        if (httpContext.Items.TryGetValue(PermissionAssignmentEnablersItemKey, out object? rawPermissionAssignments))
+        if (callContextAccessor.Items.TryGetValue(PermissionAssignmentEnablersItemKey, out object? rawPermissionAssignments))
         {
             return (IEnumerable<IPermissionAssignmentEnabler>)rawPermissionAssignments!;
         }
 
-        ClaimsPrincipal user = httpContext.User ?? throw UnauthenticatedException;
+        ClaimsPrincipal user = callContextAccessor.User;
 
         IEnumerable<string> scopes = user.FindAll(ClaimConstants.Scp).Concat(user.FindAll(ClaimConstants.Scope))
             .SelectMany(static x => x.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
@@ -113,71 +105,13 @@ internal sealed class PermissionService : IPermissionService
             staticAssignments.Add(new PluginPermissionAssignment(PluginPermission.Manage));
         }
 
-        httpContext.Items[PermissionAssignmentEnablersItemKey] = enablers;
+        callContextAccessor.Items[PermissionAssignmentEnablersItemKey] = enablers;
         return enablers;
     }
 
     private sealed class StaticPermissionAssignmentEnabler : IPermissionAssignmentEnabler
     {
         public required IEnumerable<IPermissionAssignment> StaticAssignments { get; init; }
-    }
-
-    private (Guid ObjectId, Guid? MaybeAppId) GetMainPrincipal()
-    {
-        HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
-        if (httpContext.Items.TryGetValue(MainPrincipalItemKey, out object? rawMainPrincipal))
-        {
-            return (ValueTuple<Guid, Guid?>)rawMainPrincipal!;
-        }
-
-        ClaimsPrincipal user = httpContext.User ?? throw UnauthenticatedException;
-
-        Claim objectIdClaim = user.FindFirst(ClaimConstants.Oid) ?? user.FindFirst(ClaimConstants.ObjectId) ?? throw BadOidClaimException;
-        if (!Guid.TryParse(objectIdClaim.Value, out Guid objectId))
-            throw BadOidClaimException;
-
-        Claim authMethClaim = user.FindFirst("azpacr") ?? user.FindFirst("appidacr") ?? throw BadAzpacrClaimException;
-        if (!int.TryParse(authMethClaim.Value, out int authMeth))
-            throw BadAzpacrClaimException;
-
-        bool isUser = authMeth switch
-        {
-            0 => true,
-            1 or 2 => false,
-            _ => throw BadAzpacrClaimException,
-        };
-
-        Guid? maybeAppId;
-        if (isUser)
-        {
-            maybeAppId = null;
-        }
-        else
-        {
-            Claim appIdClaim = user.FindFirst("azp") ?? user.FindFirst("Appid") ?? throw BadAzpClaimException;
-            if (!Guid.TryParse(appIdClaim.Value, out Guid appId))
-                throw BadAzpClaimException;
-            maybeAppId = appId;
-        }
-
-        (Guid, Guid?) mainPrincipal = (objectId, maybeAppId);
-        httpContext.Items[MainPrincipalItemKey] = mainPrincipal;
-        return mainPrincipal;
-    }
-
-    private async ValueTask<IEnumerable<Guid>> GetPrincipalIdsAsync(CancellationToken cancellationToken)
-    {
-        HttpContext httpContext = httpContextAccessor.HttpContext ?? throw UnauthenticatedException;
-        if (httpContext.Items.TryGetValue(PrincipalIdsItemKey, out object? rawPrincipalIds))
-        {
-            return (IEnumerable<Guid>)rawPrincipalIds!;
-        }
-
-        (Guid objectId, Guid? appId) = GetMainPrincipal();
-
-        IEnumerable<Guid> principalIds = (await identityRepository.GetGroupIdsAsync(objectId, appId is null, cancellationToken)).Prepend(objectId).ToArray();
-        httpContext.Items[PrincipalIdsItemKey] = principalIds;
-        return principalIds;
     }
 
     public Task CheckCanStartAnalysisAsync(CancellationToken cancellationToken)
@@ -187,13 +121,11 @@ internal sealed class PermissionService : IPermissionService
         );
     }
 
-    public async Task CheckCanDequeueExecutionsAsync(CancellationToken cancellationToken)
+    public Task CheckCanDequeueExecutionsAsync(CancellationToken cancellationToken)
     {
-        if (GetMainPrincipal() is not (_, { } appId))
-        {
-            // TODO Validate appId equal to self
-            throw CannotDequeueExecutionsException;
-        }
+        return identityRepository.GetMainPrincipal() is (_, { } appId) && SelfAppId == appId
+            ? Task.CompletedTask
+            : Task.FromException(CannotDequeueExecutionsException);
     }
 
     public Task CheckCanDequeueExecutionAsync(
@@ -264,7 +196,7 @@ internal sealed class PermissionService : IPermissionService
             return null;
         }
 
-        IEnumerable<Guid> principalIds = await GetPrincipalIdsAsync(cancellationToken);
+        IEnumerable<Guid> principalIds = await identityRepository.GetPrincipalIdsAsync(cancellationToken);
 
         if (await permissionAssignmentRepository
             .GetPermissionAssignmentsAE<TPermission>(kind, principalIds, cancellationToken)
