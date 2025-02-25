@@ -6,6 +6,13 @@ terraform {
     }
   }
 
+  backend "azurerm" {
+    storage_account_name = "diginsightanalyzerstg00"
+    container_name = "tfstates"
+    key = ""
+    use_azuread_auth = true
+  }
+
   required_version = "~> 1.0"
 }
 
