@@ -33,27 +33,8 @@ internal static partial class Program
 
         IWebHostEnvironment environment = appBuilder.Environment;
         IConfiguration configuration = appBuilder.Configuration;
-        IServiceCollection services = appBuilder.Services;
-
-        services.Configure<DiginsightConsoleFormatterOptions>(configuration.GetSection("Diginsight:Console"));
-        services.AddLogging(
-            static loggingBuilder =>
-            {
-                loggingBuilder.ClearProviders();
-                loggingBuilder.AddDiginsightConsole();
-            }
-        );
-
-        // TODO OpenTelemetry
-
-        earlyLoggingManager.AttachTo(services);
-
-        services.AddMicrosoftIdentityWebApiAuthentication(configuration, "Api:AzureAd");
-
-        appBuilder.Host.UseDiginsightServiceProvider();
 
         bool isLocal = environment.IsDevelopment();
-        bool isAgent = CommonUtils.IsAgent;
 
         TokenCredential credential;
         {
@@ -74,6 +55,26 @@ internal static partial class Program
                 }
             );
         }
+
+        IServiceCollection services = appBuilder.Services;
+
+        services.Configure<DiginsightConsoleFormatterOptions>(configuration.GetSection("Diginsight:Console"));
+        services.AddLogging(
+            static loggingBuilder =>
+            {
+                loggingBuilder.ClearProviders();
+                loggingBuilder.AddDiginsightConsole();
+            }
+        );
+
+        // TODO OpenTelemetry
+
+        earlyLoggingManager.AttachTo(services);
+
+        services.AddMicrosoftIdentityWebApiAuthentication(configuration, "Api:AzureAd");
+
+        appBuilder.Host.UseDiginsightServiceProvider();
+        bool isAgent = CommonUtils.IsAgent;
 
         LogMessages.ProgramInfos(logger, isAgent);
 
