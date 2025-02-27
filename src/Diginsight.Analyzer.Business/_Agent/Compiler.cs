@@ -14,6 +14,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.CompilerServices;
 using Duration = Google.Protobuf.WellKnownTypes.Duration;
+using Type = Google.Api.Expr.V1Alpha1.Type;
 
 namespace Diginsight.Analyzer.Business;
 
@@ -65,6 +66,7 @@ internal sealed class Compiler : ICompiler
             {
                 [ConditionLibrary.ContextVarName] = new AnalysisContextView(analysisContext),
                 [ConditionLibrary.ProgressVarName] = JTokenToVal(analysisContext.ProgressRO),
+                [ConditionLibrary.StepsVarName] = analysisContext.Steps.ToDictionary(static x => x.Meta.InternalName, static x => new StepHistoryView(x)),
                 [ConditionLibrary.StepVarName] = new StepHistoryView(stepHistory),
             };
 
@@ -114,6 +116,7 @@ internal sealed class Compiler : ICompiler
     {
         public const string ContextVarName = "context";
         public const string ProgressVarName = "progress";
+        public const string StepsVarName = "steps";
         public const string StepVarName = "step";
         public const string IsSucceededFunctionName = "isSucceeded";
         private const string IsFailedFunctionName = "isFailed";
@@ -125,32 +128,37 @@ internal sealed class Compiler : ICompiler
             set => field ??= value;
         }
 
-        public IList<EnvOption> CompileOptions { get; } =
-        [
-            IEnvOption.Declarations(
-                Decls.NewVar(ContextVarName, Decls.NewObjectType(typeof(AnalysisContextView).FullName!)),
-                Decls.NewVar(ProgressVarName, Decls.NewMapType(Decls.String, Decls.Any)),
-                Decls.NewVar(StepVarName, Decls.NewObjectType(typeof(StepHistoryView).FullName!)),
-                Decls.NewFunction(
-                    IsSucceededFunctionName,
-                    Decls.NewOverload(IsSucceededFunctionName, [ ], Decls.Bool)
-                ),
-                Decls.NewFunction(
-                    IsFailedFunctionName,
-                    Decls.NewOverload(IsFailedFunctionName, [ ], Decls.Bool)
-                )
-            ),
-            IEnvOption.Types(
-                typeof(AnalysisContextView),
-                typeof(StepHistoryView),
-                typeof(ExceptionView)
-            ),
-        ];
+        public IList<EnvOption> CompileOptions { get; }
 
         public IList<ProgramOption> ProgramOptions { get; }
 
         public ConditionLibrary()
         {
+            Type stepHistoryType = Decls.NewObjectType(typeof(StepHistoryView).FullName!);
+
+            CompileOptions = [
+                IEnvOption.Declarations(
+                    Decls.NewVar(ContextVarName, Decls.NewObjectType(typeof(AnalysisContextView).FullName!)),
+                    Decls.NewVar(ProgressVarName, Decls.NewMapType(Decls.String, Decls.Any)),
+                    Decls.NewVar(StepsVarName, Decls.NewMapType(Decls.String, stepHistoryType)),
+                    Decls.NewVar(StepVarName, stepHistoryType),
+                    Decls.NewFunction(
+                        IsSucceededFunctionName,
+                        Decls.NewOverload(IsSucceededFunctionName, [ ], Decls.Bool)
+                    ),
+                    Decls.NewFunction(
+                        IsFailedFunctionName,
+                        Decls.NewOverload(IsFailedFunctionName, [ ], Decls.Bool)
+                    )
+                ),
+                IEnvOption.Types(
+                    typeof(FailableView),
+                    typeof(AnalysisContextView),
+                    typeof(StepHistoryView),
+                    typeof(ExceptionView)
+                ),
+            ];
+
             ProgramOptions =
             [
                 IProgramOption.Functions(
@@ -211,10 +219,6 @@ internal sealed class Compiler : ICompiler
         //public DateTime? QueuedAt => analysisContext.QueuedAt;
 
         //public DateTime? StartedAt => analysisContext.StartedAt;
-
-        [field: MaybeNull]
-        public IDictionary<string, StepHistoryView> Steps =>
-            field ??= analysisContext.Steps.ToDictionary(static x => x.Meta.InternalName, static x => new StepHistoryView(x));
 
         public AnalysisContextView(IAnalysisContextRO analysisContext)
             : base(analysisContext)

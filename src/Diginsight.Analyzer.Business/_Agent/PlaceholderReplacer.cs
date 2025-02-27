@@ -1,5 +1,7 @@
-﻿using StringTokenFormatter;
+﻿using Newtonsoft.Json.Linq;
+using StringTokenFormatter;
 using StringTokenFormatter.Impl;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
@@ -22,19 +24,58 @@ internal sealed class PlaceholderReplacer : IPlaceholderReplacer
             return Resolver.Builder().AddObject(new StepHistoryView(step)).AddReason(step).CombinedResult();
         }
 
+        static void AddJToken(ref TokenValueContainerBuilder builder, string name, JToken jt)
+        {
+            builder = jt switch
+            {
+                JObject jo => builder.AddPrefixedContainer(name, JObjectToContainer(jo)),
+                JArray ja => ja.All(static x => x is JValue)
+                    ? builder.AddSequence(name, ja.Cast<JValue>().Where(static x => x.Value is not null).Select(static x => x.Value!))
+                    : builder.AddPrefixedContainer(name, JArrayToContainer(ja)),
+                JValue jv => jv.Value is { } value ? builder.AddSingle(name, value) : builder,
+                _ => throw new UnreachableException($"Unexpected {jt.GetType().Name}"),
+            };
+        }
+
+        static ITokenValueContainer JObjectToContainer(JObject jo)
+        {
+            TokenValueContainerBuilder builder = Resolver.Builder();
+
+            foreach (JProperty jp in jo.Properties())
+            {
+                AddJToken(ref builder, jp.Name, jp.Value);
+            }
+
+            return builder.CombinedResult();
+        }
+
+        static ITokenValueContainer JArrayToContainer(JArray ja)
+        {
+            TokenValueContainerBuilder builder = Resolver.Builder();
+
+            int count = ja.Count;
+            for (int i = 0; i < count; i++)
+            {
+                AddJToken(ref builder, i.ToStringInvariant(), ja[i]);
+            }
+
+            return builder.CombinedResult();
+        }
+
         ITokenValueContainer container = Resolver.Builder()
             .AddPrefixedContainer(
                 "context",
                 Resolver.Builder()
                     .AddObject(new AnalysisContextView(analysisContext))
                     .AddReason(analysisContext)
-                    .AddSequence<object>("allsteps", analysisContext.Steps.Select(StepToContainer).ToArray())
-                    .AddPrefixedContainer(
-                        "steps",
-                        analysisContext.Steps
-                            .Aggregate(Resolver.Builder(), static (b, s) => b.AddPrefixedContainer(s.Meta.InternalName, StepToContainer(s)))
-                            .CombinedResult()
-                    )
+                    .CombinedResult()
+            )
+            .AddPrefixedContainer("progress", JObjectToContainer(analysisContext.ProgressRO))
+            .AddSequence<object>("allsteps", analysisContext.Steps.Select(StepToContainer).ToArray())
+            .AddPrefixedContainer(
+                "steps",
+                analysisContext.Steps
+                    .Aggregate(Resolver.Builder(), static (b, s) => b.AddPrefixedContainer(s.Meta.InternalName, StepToContainer(s)))
                     .CombinedResult()
             )
             .AddPrefixedContainer("step", StepToContainer(step))
