@@ -21,18 +21,18 @@ internal sealed class ReportService : IReportService
     public async Task<AnalysisReport?> GetReportAsync(Guid executionId, CancellationToken cancellationToken)
     {
         return await snapshotService.GetAnalysisAsync(executionId, true, true, cancellationToken) is { } snapshot
-            ? GetReportCore(snapshot)
+            ? CoreGetReport(snapshot)
             : null;
     }
 
     public async Task<AnalysisReport?> GetReportAsync(AnalysisCoord coord, CancellationToken cancellationToken)
     {
         return await snapshotService.GetAnalysisAsync(coord, true, true, cancellationToken) is { } snapshot
-            ? GetReportCore(snapshot)
+            ? CoreGetReport(snapshot)
             : null;
     }
 
-    private AnalysisReport GetReportCore(AnalysisContextSnapshot snapshot)
+    private AnalysisReport CoreGetReport(AnalysisContextSnapshot snapshot)
     {
         JObject progress = snapshot.Progress!;
         return new AnalysisReport()
@@ -42,9 +42,7 @@ internal sealed class ReportService : IReportService
                     step =>
                     {
                         StepMeta meta = step.Meta;
-                        return analyzerStepTemplates[meta.Template]
-                            .Create(meta)
-                            .GetReport(step.Status, progress);
+                        return analyzerStepTemplates[meta.Template].Create(meta).GetReport(step.Status, progress);
                     }
                 )
                 .ToArray(),

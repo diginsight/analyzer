@@ -16,4 +16,18 @@ public sealed class AnalysisSpecificPermissionAssignment : ISpecificPermissionAs
     }
 
     public bool NeedsEnabler() => Permission == AnalysisPermission.Read || Permission == AnalysisPermission.Invoke;
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(this, obj))
+            return true;
+        return obj is AnalysisSpecificPermissionAssignment other
+            && Permission.Equals(other.Permission)
+            && Nullable.Equals(PrincipalId, other.PrincipalId);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Permission, PrincipalId);
+    }
 }

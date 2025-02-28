@@ -1,4 +1,5 @@
-﻿using Diginsight.Analyzer.Repositories.Models;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using Diginsight.Analyzer.Repositories.Models;
 
 namespace Diginsight.Analyzer.Repositories;
 
@@ -23,7 +24,7 @@ public interface IAnalysisInfoRepository
 
     Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(Guid executionId, bool withProgress, CancellationToken cancellationToken);
 
-    Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(AnalysisCoord analysisCoord, bool withProgress, CancellationToken cancellationToken);
+    Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(AnalysisCoord coord, bool withProgress, CancellationToken cancellationToken);
 
     IAsyncEnumerable<AnalysisContextSnapshot> GetAnalysisSnapshotsAE(
         Guid analysisId,
@@ -33,4 +34,12 @@ public interface IAnalysisInfoRepository
     );
 
     IAsyncEnumerable<AnalysisContextSnapshot> GetAllQueuedAnalysisSnapshotsAE(CancellationToken cancellationToken);
+
+    Task<bool> EnsurePermissionAssignmentAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task<bool> EnsurePermissionAssignmentAsync(AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task<bool> RemovePermissionAssignmentAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task<bool> RemovePermissionAssignmentAsync(AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
 }

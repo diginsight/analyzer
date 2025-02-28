@@ -39,6 +39,7 @@ internal sealed class PermissionService : IPermissionService
     private static readonly object PermissionAssignmentEnablersItemKey = new ();
 
     private readonly IPermissionAssignmentRepository permissionAssignmentRepository;
+    private readonly IAnalysisInfoRepository analysisInfoRepository;
     private readonly IIdentityRepository identityRepository;
     private readonly ICallContextAccessor callContextAccessor;
     private readonly Lazy<Guid> selfAppIdLazy;
@@ -47,12 +48,14 @@ internal sealed class PermissionService : IPermissionService
 
     public PermissionService(
         IPermissionAssignmentRepository permissionAssignmentRepository,
+        IAnalysisInfoRepository analysisInfoRepository,
         IIdentityRepository identityRepository,
         ICallContextAccessor callContextAccessor,
         IOptionsMonitor<JwtBearerOptions> jwtBearerOptionsMonitor
     )
     {
         this.permissionAssignmentRepository = permissionAssignmentRepository;
+        this.analysisInfoRepository = analysisInfoRepository;
         this.identityRepository = identityRepository;
         this.callContextAccessor = callContextAccessor;
         selfAppIdLazy = new Lazy<Guid>(() => Guid.Parse(jwtBearerOptionsMonitor.Get(JwtBearerDefaults.AuthenticationScheme).Audience!));
@@ -196,16 +199,48 @@ internal sealed class PermissionService : IPermissionService
         }
     }
 
-    public async Task AssignPermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    public async Task AssignPermissionAsync(IPermissionAssignment assignment, CancellationToken cancellationToken)
     {
         await CheckCanHandlePermissionsAsync(true, cancellationToken);
-        await permissionAssignmentRepository.EnsurePermissionAssignmentAsync(permissionAssignment, cancellationToken);
+        await permissionAssignmentRepository.EnsurePermissionAssignmentAsync(assignment, cancellationToken);
     }
 
-    public async Task DeletePermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    public async Task RemovePermissionAsync(IPermissionAssignment assignment, CancellationToken cancellationToken)
     {
         await CheckCanHandlePermissionsAsync(true, cancellationToken);
-        await permissionAssignmentRepository.DeletePermissionAssignmentAsync(permissionAssignment, cancellationToken);
+        await permissionAssignmentRepository.DeletePermissionAssignmentAsync(assignment, cancellationToken);
+    }
+
+    public async Task AssignAnalysisPermissionAsync(
+        Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await analysisInfoRepository.EnsurePermissionAssignmentAsync(executionId, assignment, cancellationToken);
+    }
+
+    public async Task AssignAnalysisPermissionAsync(
+        AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await analysisInfoRepository.EnsurePermissionAssignmentAsync(coord, assignment, cancellationToken);
+    }
+
+    public async Task RemoveAnalysisPermissionAsync(
+        Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await analysisInfoRepository.RemovePermissionAssignmentAsync(executionId, assignment, cancellationToken);
+    }
+
+    public async Task RemoveAnalysisPermissionAsync(
+        AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await analysisInfoRepository.RemovePermissionAssignmentAsync(coord, assignment, cancellationToken);
     }
 
     private Task CheckCanHandlePermissionsAsync(bool manage, CancellationToken cancellationToken)

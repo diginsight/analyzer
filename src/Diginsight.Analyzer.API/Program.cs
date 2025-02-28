@@ -71,7 +71,12 @@ internal static partial class Program
 
         earlyLoggingManager.AttachTo(services);
 
-        services.AddMicrosoftIdentityWebApiAuthentication(configuration, "Api:AzureAd");
+        bool disableAuthorization = CommonUtils.ToBool(configuration["Api:DisableAuthorization"]) == true;
+
+        if (!disableAuthorization)
+        {
+            services.AddMicrosoftIdentityWebApiAuthentication(configuration, "Api:AzureAd");
+        }
 
         appBuilder.Host.UseDiginsightServiceProvider();
         bool isAgent = CommonUtils.IsAgent;
@@ -82,13 +87,21 @@ internal static partial class Program
 
         services
             .AddTransient<GlobalExceptionMiddleware>()
-            .AddSingleton<IPermissionService, PermissionService>()
             .AddSingleton<ICallContextAccessor, CallContextAccessor>();
+
+        if (disableAuthorization)
+        {
+            services.AddSingleton<IPermissionService, DummyPermissionService>();
+        }
+        else
+        {
+            services.AddSingleton<IPermissionService, PermissionService>();
+        }
 
         services.AddHttpClient(typeof(AnalysisController).FullName!);
 
         services
-            .AddRepositories(configuration, credential)
+            .AddRepositories(configuration, credential, disableAuthorization)
             .AddBusiness(configuration);
 
         if (isAgent)
@@ -154,8 +167,11 @@ internal static partial class Program
                 }
         );
 
-        app.UseAuthentication();
-        app.UseAuthorization();
+        if (!disableAuthorization)
+        {
+            app.UseAuthentication();
+            app.UseAuthorization();
+        }
 
         app.UseRouting();
 

@@ -1,4 +1,5 @@
 ﻿using Diginsight.Analyzer.Entities;
+using Diginsight.Analyzer.Entities.Permissions;
 using Diginsight.Analyzer.Repositories.Configurations;
 using Diginsight.Analyzer.Repositories.Models;
 using Microsoft.Azure.Cosmos;
@@ -123,9 +124,12 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         return snapshot;
     }
 
-    public async Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(AnalysisCoord analysisCoord, bool withProgress, CancellationToken cancellationToken)
+    public Task<AnalysisContextSnapshot?> GetAnalysisSnapshotAsync(AnalysisCoord coord, bool withProgress, CancellationToken cancellationToken)
+        => CoreGetAnalysisSnapshotAsync(coord, withProgress, cancellationToken);
+
+    private async Task<AnalysisContextSnapshot?> CoreGetAnalysisSnapshotAsync(AnalysisCoord coord, bool withProgress, CancellationToken cancellationToken)
     {
-        (Guid analysisId, int attempt) = analysisCoord;
+        (Guid analysisId, int attempt) = coord;
 
         LogMessages.GettingAnalysisSnapshot(logger, analysisId, attempt);
 
@@ -207,6 +211,72 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
                 yield return snapshot;
             }
         }
+    }
+
+    public Task<bool> EnsurePermissionAssignmentAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken)
+        => CoreApplyPermissionAssignmentAsync(executionId, assignment, true, cancellationToken);
+
+    public async Task<bool> EnsurePermissionAssignmentAsync(
+        AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        return await CoreGetAnalysisSnapshotAsync(coord, false, cancellationToken) is { ExecutionId: var executionId }
+            && await CoreApplyPermissionAssignmentAsync(executionId, assignment, true, cancellationToken);
+    }
+
+    public Task<bool> RemovePermissionAssignmentAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken)
+        => CoreApplyPermissionAssignmentAsync(executionId, assignment, false, cancellationToken);
+
+    public async Task<bool> RemovePermissionAssignmentAsync(
+        AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken
+    )
+    {
+        return await CoreGetAnalysisSnapshotAsync(coord, false, cancellationToken) is { ExecutionId: var executionId }
+            && await CoreApplyPermissionAssignmentAsync(executionId, assignment, false, cancellationToken);
+    }
+
+    private async Task<bool> CoreApplyPermissionAssignmentAsync(
+        Guid executionId,
+        AnalysisSpecificPermissionAssignment assignment,
+        bool add,
+        CancellationToken cancellationToken
+    )
+    {
+        string executionId0 = executionId.ToString("D");
+        PartitionKey partitionKey = new(executionId0);
+
+        AnalysisPermissionDocument document;
+        try
+        {
+            document = await analysisContainer.ReadItemAsync<AnalysisPermissionDocument>(executionId0, partitionKey, cancellationToken: cancellationToken);
+        }
+        catch (CosmosException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
+        if (add)
+        {
+            document.PermissionAssignments.Add(assignment);
+        }
+        else
+        {
+            document.PermissionAssignments.Remove(assignment);
+        }
+
+        await analysisContainer.ReplaceItemAsync(document, executionId0, partitionKey, cancellationToken: cancellationToken);
+        return true;
+    }
+
+    private sealed class AnalysisPermissionDocument
+    {
+        [JsonProperty("id")]
+        public string Id { get; private init; } = null!;
+
+        public ISet<AnalysisSpecificPermissionAssignment> PermissionAssignments { get; } = new HashSet<AnalysisSpecificPermissionAssignment>();
+
+        [JsonExtensionData]
+        private JObject ExtensionData { get; } = new ();
     }
 
     private async Task CoreDeleteAsync(Guid executionId)

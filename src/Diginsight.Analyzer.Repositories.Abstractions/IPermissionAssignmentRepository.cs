@@ -13,7 +13,7 @@ public interface IPermissionAssignmentRepository
         ValueTuple<PermissionKind>? optionalKind, ValueTuple<Guid?>? optionalPrincipalId, CancellationToken cancellationToken
     );
 
-    Task EnsurePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+    Task EnsurePermissionAssignmentAsync(IPermissionAssignment assignment, CancellationToken cancellationToken);
 
-    Task DeletePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+    Task DeletePermissionAssignmentAsync(IPermissionAssignment assignment, CancellationToken cancellationToken);
 }

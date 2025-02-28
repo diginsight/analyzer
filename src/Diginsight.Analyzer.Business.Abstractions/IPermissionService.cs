@@ -29,7 +29,15 @@ public interface IPermissionService
         ValueTuple<PermissionKind>? optionalKind, ValueTuple<Guid?>? optionalPrincipalId, CancellationToken cancellationToken
     );
 
-    Task AssignPermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+    Task AssignPermissionAsync(IPermissionAssignment assignment, CancellationToken cancellationToken);
 
-    Task DeletePermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+    Task RemovePermissionAsync(IPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task AssignAnalysisPermissionAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task AssignAnalysisPermissionAsync(AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task RemoveAnalysisPermissionAsync(Guid executionId, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
+
+    Task RemoveAnalysisPermissionAsync(AnalysisCoord coord, AnalysisSpecificPermissionAssignment assignment, CancellationToken cancellationToken);
 }

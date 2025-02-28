@@ -12,7 +12,9 @@ namespace Diginsight.Analyzer.Repositories;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class RepositoriesExtensions
 {
-    public static IServiceCollection AddRepositories(this IServiceCollection services, IConfiguration configuration, TokenCredential credential)
+    public static IServiceCollection AddRepositories(
+        this IServiceCollection services, IConfiguration configuration, TokenCredential credential, bool disableAuthorization
+    )
     {
         if (services.Any(static x => x.ServiceType == typeof(IAnalysisInfoRepository)))
         {
@@ -45,10 +47,18 @@ public static class RepositoriesExtensions
             }
         }
 
+        if (disableAuthorization)
+        {
+            services.AddSingleton<IIdentityRepository, DummyIdentityRepository>();
+        }
+        else
+        {
+            services.AddSingleton<IIdentityRepository, IdentityRepository>();
+        }
+
         services
             .AddSingleton<IAnalysisInfoRepository, AnalysisInfoRepository>()
             .AddSingleton<IPermissionAssignmentRepository, PermissionAssignmentRepository>()
-            .AddSingleton<IIdentityRepository, IdentityRepository>()
             .AddSingleton<ILeaseRepository, LeaseRepository>()
             .AddSingleton(
                 static sp => CreateFileRepository<IAnalysisFileRepository, BlobAnalysisFileRepository, PhysicalAnalysisFileRepository>(sp, "analyses")

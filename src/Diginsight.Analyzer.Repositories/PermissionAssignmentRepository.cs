@@ -81,9 +81,9 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
         }
     }
 
-    public async Task EnsurePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    public async Task EnsurePermissionAssignmentAsync(IPermissionAssignment assignment, CancellationToken cancellationToken)
     {
-        (PermissionKind kind, Guid? principalId, string permission) = permissionAssignment;
+        (PermissionKind kind, Guid? principalId, string permission) = assignment;
 
         LogMessages.EnsuringPermissionAssignment(logger, kind, permission, principalId);
 
@@ -104,12 +104,12 @@ internal sealed partial class PermissionAssignmentRepository : IPermissionAssign
             }
         }
 
-        await permissionAssignmentContainer.CreateItemAsync(new PermissionAssignmentDocument(permissionAssignment), partitionKey, cancellationToken: cancellationToken);
+        await permissionAssignmentContainer.CreateItemAsync(new PermissionAssignmentDocument(assignment), partitionKey, cancellationToken: cancellationToken);
     }
 
-    public async Task DeletePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    public async Task DeletePermissionAssignmentAsync(IPermissionAssignment assignment, CancellationToken cancellationToken)
     {
-        (PermissionKind kind, Guid? principalId, string permission) = permissionAssignment;
+        (PermissionKind kind, Guid? principalId, string permission) = assignment;
 
         LogMessages.DeletingPermissionAssignment(logger, kind, permission, principalId);
 
