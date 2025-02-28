@@ -1,14 +1,20 @@
 ﻿using Diginsight.Analyzer.Business.Models;
+using Diginsight.Analyzer.Repositories;
 using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business;
 
 internal sealed class OrchestratorAnalysisContextFactory : IOrchestratorAnalysisContextFactory
 {
+    private readonly IIdentityRepository identityRepository;
     private readonly TimeProvider timeProvider;
 
-    public OrchestratorAnalysisContextFactory(TimeProvider timeProvider)
+    public OrchestratorAnalysisContextFactory(
+        IIdentityRepository identityRepository,
+        TimeProvider timeProvider
+    )
     {
+        this.identityRepository = identityRepository;
         this.timeProvider = timeProvider;
     }
 
@@ -22,7 +28,7 @@ internal sealed class OrchestratorAnalysisContextFactory : IOrchestratorAnalysis
     )
     {
         return new OrchestratorAnalysisContext(
-            executionId, analysisCoord, globalMeta, steps, progress, timeProvider.GetUtcNow().UtcDateTime, agentPool
+            executionId, analysisCoord, globalMeta, steps, progress, timeProvider.GetUtcNow().UtcDateTime, agentPool, identityRepository.GetMainPrincipal().ObjectId
         );
     }
 }

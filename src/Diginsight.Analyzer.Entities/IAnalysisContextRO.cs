@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Entities;
 
@@ -19,6 +20,8 @@ public interface IAnalysisContextRO : IExecutionContextRO, ITimeBoundRO
     IEnumerable<IStepHistoryRO> Steps { get; }
 
     JObject ProgressRO { get; }
+
+    IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> PermissionAssignments { get; }
 
     IStepHistoryRO GetStep(string internalName);
 }

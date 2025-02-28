@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -235,6 +236,50 @@ internal sealed partial class AnalysisInfoRepository : IAnalysisInfoRepository, 
         catch (IOException exception)
         {
             LogMessages.ErrorWritingProgress(logger, exception);
+        }
+    }
+
+    private sealed class AnalysisContextDocument
+    {
+        public string Id { get; }
+
+        public ExecutionKind Kind { get; }
+
+        public Guid AnalysisId { get; }
+
+        public int Attempt { get; }
+
+        [JsonExtensionData]
+        private JObject ExtensionData { get; } = new ();
+
+        [JsonConstructor]
+        private AnalysisContextDocument(ExecutionKind kind, string id, Guid analysisId, int attempt)
+        {
+            Kind = kind;
+            Id = id;
+            AnalysisId = analysisId;
+            Attempt = attempt;
+        }
+
+        public static AnalysisContextDocument Create(IAnalysisContextRO analysisContext)
+        {
+            (ExecutionKind executionKind, Guid executionId) = analysisContext.ExecutionCoord;
+            (Guid analysisId, int attempt) = analysisContext.AnalysisCoord;
+
+            AnalysisContextDocument document = new (executionKind, executionId.ToString("D"), analysisId, attempt);
+
+            JsonSerializer serializer = JsonSerializer.CreateDefault();
+
+            JObject rawSource = JObject.FromObject(analysisContext, serializer);
+            rawSource.Property(nameof(IAnalysisContextRO.ExecutionCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
+            rawSource.Property(nameof(IAnalysisContextRO.AnalysisCoord), StringComparison.OrdinalIgnoreCase)!.Remove();
+
+            using (JsonReader reader = rawSource.CreateReader())
+            {
+                serializer.Populate(reader, document);
+            }
+
+            return document;
         }
     }
 

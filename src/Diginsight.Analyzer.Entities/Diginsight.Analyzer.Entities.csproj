@@ -8,4 +8,8 @@
     <ProjectReference Include="..\Diginsight.Analyzer.Common\Diginsight.Analyzer.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="NewFolder\" />
+  </ItemGroup>
+
 </Project>

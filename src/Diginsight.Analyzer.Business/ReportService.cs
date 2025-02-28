@@ -20,34 +20,34 @@ internal sealed class ReportService : IReportService
 
     public async Task<AnalysisReport?> GetReportAsync(Guid executionId, CancellationToken cancellationToken)
     {
-        return await snapshotService.GetAnalysisAsync(executionId, true, cancellationToken) is { } snapshot
-            ? await GetReportCoreAsync(snapshot, cancellationToken)
+        return await snapshotService.GetAnalysisAsync(executionId, true, true, cancellationToken) is { } snapshot
+            ? GetReportCore(snapshot)
             : null;
     }
 
     public async Task<AnalysisReport?> GetReportAsync(AnalysisCoord coord, CancellationToken cancellationToken)
     {
-        return await snapshotService.GetAnalysisAsync(coord, true, cancellationToken) is { } snapshot
-            ? await GetReportCoreAsync(snapshot, cancellationToken)
+        return await snapshotService.GetAnalysisAsync(coord, true, true, cancellationToken) is { } snapshot
+            ? GetReportCore(snapshot)
             : null;
     }
 
-    private async Task<AnalysisReport?> GetReportCoreAsync(AnalysisContextSnapshot snapshot, CancellationToken cancellationToken)
+    private AnalysisReport GetReportCore(AnalysisContextSnapshot snapshot)
     {
         JObject progress = snapshot.Progress!;
         return new AnalysisReport()
         {
-            Steps = await snapshot.Steps.ToAsyncEnumerable()
+            Steps = snapshot.Steps
                 .Select(
-                    history =>
+                    step =>
                     {
-                        StepMeta meta = history.Meta;
+                        StepMeta meta = step.Meta;
                         return analyzerStepTemplates[meta.Template]
                             .Create(meta)
-                            .GetReport(history.Status, progress);
+                            .GetReport(step.Status, progress);
                     }
                 )
-                .ToArrayAsync(cancellationToken),
+                .ToArray(),
         };
     }
 }

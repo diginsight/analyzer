@@ -262,7 +262,7 @@ internal sealed partial class AnalysisExecutor : IAnalysisExecutor
                 TaskUtils.RunAndForget(
                     async () =>
                     {
-                        (_, string internalName) = stepMeta;
+                        string internalName = stepMeta.InternalName;
 
                         RateLimitLease lease;
                         try

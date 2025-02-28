@@ -8,7 +8,7 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
     public static readonly AnalysisPermission None = default;
     public static readonly AnalysisPermission Start = new (nameof(Start), true, false, false);
     public static readonly AnalysisPermission Read = new (nameof(Read), false, true, false);
-    public static readonly AnalysisPermission ReadAndInvoke = new (nameof(ReadAndInvoke), false, true, true);
+    public static readonly AnalysisPermission Invoke = new (nameof(Invoke), false, true, true);
 
     static IReadOnlyDictionary<string, AnalysisPermission> IPermission<AnalysisPermission>.Values { get; } =
         new Dictionary<string, AnalysisPermission>(StringComparer.OrdinalIgnoreCase)
@@ -16,7 +16,7 @@ public readonly struct AnalysisPermission : IPermission<AnalysisPermission>
             [nameof(None)] = None,
             [nameof(Start)] = Start,
             [nameof(Read)] = Read,
-            [nameof(ReadAndInvoke)] = ReadAndInvoke,
+            [nameof(Invoke)] = Invoke,
         };
 
     // ReSharper disable once ReplaceWithFieldKeyword

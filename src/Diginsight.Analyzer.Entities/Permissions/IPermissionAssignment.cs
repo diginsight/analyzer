@@ -12,6 +12,9 @@ public interface IPermissionAssignment
     [JsonProperty("principalId")]
     Guid? PrincipalId { get; }
 
+    [JsonProperty("permission")]
+    string Permission { get; }
+
     private sealed class Converter : JsonConverter
     {
         public override bool CanWrite => false;
@@ -39,5 +42,7 @@ public interface IPermissionAssignment
 public interface IPermissionAssignment<out TPermission> : IPermissionAssignment
     where TPermission : struct, IPermission<TPermission>
 {
-    TPermission Permission { get; }
+    new TPermission Permission { get; }
+
+    string IPermissionAssignment.Permission => Permission.Name;
 }

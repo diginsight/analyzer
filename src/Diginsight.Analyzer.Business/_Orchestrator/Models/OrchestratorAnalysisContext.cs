@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using Newtonsoft.Json.Linq;
 
 namespace Diginsight.Analyzer.Business.Models;
 
@@ -33,6 +34,8 @@ internal sealed class OrchestratorAnalysisContext : IAnalysisContextRO
 
     public Exception? Reason => null;
 
+    public IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> PermissionAssignments { get; }
+
     public OrchestratorAnalysisContext(
         Guid executionId,
         AnalysisCoord analysisCoord,
@@ -40,7 +43,8 @@ internal sealed class OrchestratorAnalysisContext : IAnalysisContextRO
         IEnumerable<IStepInstance> steps,
         JObject progress,
         DateTime queuedAt,
-        string agentPool
+        string agentPool,
+        Guid principalId
     )
     {
         ExecutionCoord = new ExecutionCoord(ExecutionKind.Analysis, executionId);
@@ -53,6 +57,7 @@ internal sealed class OrchestratorAnalysisContext : IAnalysisContextRO
             .ToDictionary(static x => x.InternalName, static x => x.Index);
         QueuedAt = queuedAt;
         AgentPool = agentPool;
+        PermissionAssignments = [ new AnalysisSpecificPermissionAssignment(AnalysisPermission.Invoke, principalId) ];
     }
 
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];
@@ -60,4 +65,8 @@ internal sealed class OrchestratorAnalysisContext : IAnalysisContextRO
     IStepHistoryRO IAnalysisContextRO.GetStep(string internalName) => GetStep(internalName);
 
     public bool IsSucceeded() => true;
+
+#if FEATURE_REPORTS
+    public Problem? ToProblem() => null;
+#endif
 }

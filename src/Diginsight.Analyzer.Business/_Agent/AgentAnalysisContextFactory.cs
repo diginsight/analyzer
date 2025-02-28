@@ -41,9 +41,6 @@ internal sealed class AgentAnalysisContextFactory : IAgentAnalysisContextFactory
             timeProvider.GetUtcNow().UtcDateTime,
             ambientService.AgentName,
             identityRepository.GetMainPrincipal().ObjectId
-        )
-        {
-            Status = TimeBoundStatus.Running,
-        };
+        );
     }
 }

@@ -6,11 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <NoWarn>CA2255;NU5104;IDE0051</NoWarn>
+    <NoWarn>CA2255;IDE0051</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
     <DiginsightCoreVersion>3.4.0</DiginsightCoreVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);FEATURE_REPORTS</DefineConstants>
   </PropertyGroup>
 
 </Project>

@@ -32,7 +32,7 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
 
     public TimeBoundStatus Status { get; set; }
 
-    public IEnumerable<AnalysisSpecificPermissionAssignment> PermissionAssignments { get; }
+    public IEnumerable<ISpecificPermissionAssignment<AnalysisPermission>> PermissionAssignments { get; }
 
     public AgentAnalysisContext(
         Guid executionId,
@@ -59,7 +59,8 @@ internal sealed class AgentAnalysisContext : ExecutionContext, IAgentAnalysisCon
         AgentPool = agentPool;
         StartedAt = startedAt;
         AgentName = agentName;
-        PermissionAssignments = [ new AnalysisSpecificPermissionAssignment(AnalysisPermission.ReadAndInvoke, principalId) ];
+        PermissionAssignments = [ new AnalysisSpecificPermissionAssignment(AnalysisPermission.Invoke, principalId) ];
+        Status = TimeBoundStatus.Running;
     }
 
     public StepHistory GetStep(string internalName) => steps[stepIndexes[internalName]];

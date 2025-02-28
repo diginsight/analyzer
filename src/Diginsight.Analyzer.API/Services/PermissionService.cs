@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 
 namespace Diginsight.Analyzer.API.Services;
@@ -25,6 +26,9 @@ internal sealed class PermissionService : IPermissionService
 
     private static readonly AnalysisException CannotInvokeAnalysisException =
         new ("Cannot invoke on such analysis", HttpStatusCode.Forbidden, "CannotInvokeAnalysis");
+
+    private static readonly AnalysisException CannotReadPermissionsException =
+        new ("Cannot read permissions", HttpStatusCode.Forbidden, "CannotReadPermissions");
 
     private static readonly AnalysisException CannotManagePermissionsException =
         new ("Cannot manage permissions", HttpStatusCode.Forbidden, "CannotManagePermissions");
@@ -90,11 +94,15 @@ internal sealed class PermissionService : IPermissionService
         }
         if (rawPermissions.Contains("Analyses.Invoke"))
         {
-            enablers.Add(new AnalysisPermissionAssignmentEnabler(AnalysisPermission.ReadAndInvoke));
+            enablers.Add(new AnalysisPermissionAssignmentEnabler(AnalysisPermission.Invoke));
         }
         if (rawPermissions.Contains("Analyses.InvokeAll"))
         {
-            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.ReadAndInvoke));
+            staticAssignments.Add(new AnalysisPermissionAssignment(AnalysisPermission.Invoke));
+        }
+        if (rawPermissions.Contains("Permissions.ReadAll"))
+        {
+            staticAssignments.Add(new PermissionPermissionAssignment(PermissionPermission.Read));
         }
         if (rawPermissions.Contains("Permissions.ManageAll"))
         {
@@ -163,17 +171,10 @@ internal sealed class PermissionService : IPermissionService
             ? queryable.Where(
                 x => x.PermissionAssignmentsQO.Any(
                     pa => (pa.PrincipalId == null || principalIds.Contains(pa.PrincipalId.Value)) &&
-                        (pa.Permission == nameof(AnalysisPermission.Read) || pa.Permission == nameof(AnalysisPermission.ReadAndInvoke))
+                        (pa.Permission == nameof(AnalysisPermission.Read) || pa.Permission == nameof(AnalysisPermission.Invoke))
                 )
             )
             : queryable;
-    }
-
-    public Task CheckCanManagePermissionsAsync(CancellationToken cancellationToken)
-    {
-        return CheckCanDoStuffAsync<PermissionPermission>(
-            PermissionKind.Permission, static x => x.Permission.CanManage, CannotManagePermissionsException, cancellationToken
-        );
     }
 
     public Task CheckCanManagePluginsAsync(CancellationToken cancellationToken)
@@ -181,6 +182,42 @@ internal sealed class PermissionService : IPermissionService
         return CheckCanDoStuffAsync<PluginPermission>(
             PermissionKind.Plugin, static x => x.Permission.CanManage, CannotManagePluginsException, cancellationToken
         );
+    }
+
+    public async IAsyncEnumerable<IPermissionAssignment> GetPermissionAssignmentsAE(
+        ValueTuple<PermissionKind>? optionalKind, ValueTuple<Guid?>? optionalPrincipalId, [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
+        await CheckCanHandlePermissionsAsync(false, cancellationToken);
+
+        await foreach (IPermissionAssignment assignment in permissionAssignmentRepository.GetPermissionAssignmentsAE(optionalKind, optionalPrincipalId, cancellationToken))
+        {
+            yield return assignment;
+        }
+    }
+
+    public async Task AssignPermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await permissionAssignmentRepository.EnsurePermissionAssignmentAsync(permissionAssignment, cancellationToken);
+    }
+
+    public async Task DeletePermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken)
+    {
+        await CheckCanHandlePermissionsAsync(true, cancellationToken);
+        await permissionAssignmentRepository.DeletePermissionAssignmentAsync(permissionAssignment, cancellationToken);
+    }
+
+    private Task CheckCanHandlePermissionsAsync(bool manage, CancellationToken cancellationToken)
+    {
+        return identityRepository.GetMainPrincipal() is (_, { } appId) && SelfAppId == appId
+            ? Task.CompletedTask
+            : CheckCanDoStuffAsync<PermissionPermission>(
+                PermissionKind.Permission,
+                manage ? static x => x.Permission.CanManage : static x => x.Permission.CanRead,
+                manage ? CannotManagePermissionsException : CannotReadPermissionsException,
+                cancellationToken
+            );
     }
 
     private async Task<(IEnumerable<IPermissionAssignmentEnabler> Enablers, IEnumerable<Guid> PrincipalId)?> CoreCheckCanDoStuffAsync<TPermission>(

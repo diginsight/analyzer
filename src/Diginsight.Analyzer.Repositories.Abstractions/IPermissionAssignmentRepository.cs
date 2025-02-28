@@ -8,4 +8,12 @@ public interface IPermissionAssignmentRepository
         PermissionKind kind, IEnumerable<Guid> principalIds, CancellationToken cancellationToken
     )
         where TPermissions : struct, IPermission<TPermissions>;
+
+    IAsyncEnumerable<IPermissionAssignment> GetPermissionAssignmentsAE(
+        ValueTuple<PermissionKind>? optionalKind, ValueTuple<Guid?>? optionalPrincipalId, CancellationToken cancellationToken
+    );
+
+    Task EnsurePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+
+    Task DeletePermissionAssignmentAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
 }

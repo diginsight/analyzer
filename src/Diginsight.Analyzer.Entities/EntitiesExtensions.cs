@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using Diginsight.Analyzer.Entities.Permissions;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace Diginsight.Analyzer.Entities;
@@ -16,5 +17,13 @@ public static class EntitiesExtensions
     public static void Skip(this ISkippable skippable, string reason)
     {
         skippable.Skip(new SkipReason(reason));
+    }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void Deconstruct(this IPermissionAssignment permissionAssignment, out PermissionKind kind, out Guid? principalId, out string permission)
+    {
+        kind = permissionAssignment.Kind;
+        principalId = permissionAssignment.PrincipalId;
+        permission = permissionAssignment.Permission;
     }
 }

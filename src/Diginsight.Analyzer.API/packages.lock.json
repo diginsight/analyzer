@@ -16,8 +16,8 @@
       "Microsoft.Extensions.Configuration.AzureAppConfiguration": {
         "type": "Direct",
         "requested": "[8.*, )",
-        "resolved": "8.0.0",
-        "contentHash": "xHqFshIHk+j7RKzCi9tbg1jVl8fQpPwWKIsWlCnDGAbFg7RZp4HhhCyo7J0NSVtoE04m7CRs5I4TMXNxvPuvJQ==",
+        "resolved": "8.1.1",
+        "contentHash": "WEfYB6jwnEFeFRYybau7cL7fdZxI+8apPfvXmzO39iqZyyvBreFk4z6wUY+VooL6cxQn+TBWgprTs/osE0VKpg==",
         "dependencies": {
           "Azure.Data.AppConfiguration": "1.4.1",
           "Azure.Messaging.EventGrid": "4.7.0",
@@ -339,8 +339,8 @@
       },
       "Microsoft.Azure.Cosmos": {
         "type": "Transitive",
-        "resolved": "3.47.0",
-        "contentHash": "dqnSjKb8fTiDnQzyQ91vvZgsmN+Tb65iUySWqAoelIx2fIvlM7A8FBAZ5r0YV77RREIyAp8DOKAkOohkBwcocA==",
+        "resolved": "3.47.1",
+        "contentHash": "T64cwiDAJZtgrRlNLjyeWMfTizYkrdk9zqp9GJqMKWJen/8/bZ9yningjaxdcEL1CKIHbDoS/L2u+kcTKJ5Ceg==",
         "dependencies": {
           "Azure.Core": "1.44.1",
           "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
@@ -587,8 +587,8 @@
       },
       "Microsoft.Graph": {
         "type": "Transitive",
-        "resolved": "5.70.0",
-        "contentHash": "5WF5M4rakCk7qdo8hRyUGYNRDrQSop2e81kkmOU20DETwO84bEYwGEWKz7zxffWP6sZ9td3NLHWb325w8IfHhA==",
+        "resolved": "5.71.0",
+        "contentHash": "LAei3Jhctq9ByLqhlqicRj6HFyz2NhKxXihhFn/ucUD5sKWNJwJxk3qIKVyGpj/ps4+uszeFNUGgoh9GM7JsHg==",
         "dependencies": {
           "Microsoft.Graph.Core": "3.2.3"
         }

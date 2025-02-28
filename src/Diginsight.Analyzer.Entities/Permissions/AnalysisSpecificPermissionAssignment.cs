@@ -2,11 +2,18 @@
 
 namespace Diginsight.Analyzer.Entities.Permissions;
 
-public sealed class AnalysisSpecificPermissionAssignment : AnalysisPermissionAssignment, ISpecificPermissionAssignment<AnalysisPermission>
+public sealed class AnalysisSpecificPermissionAssignment : ISpecificPermissionAssignment<AnalysisPermission>
 {
-    [JsonConstructor]
-    public AnalysisSpecificPermissionAssignment(AnalysisPermission permission, Guid? principalId)
-        : base(permission, principalId) { }
+    public AnalysisPermission Permission { get; }
 
-    public bool NeedsEnabler() => Permission == AnalysisPermission.Read || Permission == AnalysisPermission.ReadAndInvoke;
+    public Guid? PrincipalId { get; }
+
+    [JsonConstructor]
+    public AnalysisSpecificPermissionAssignment(AnalysisPermission permission, Guid? principalId = null)
+    {
+        Permission = permission;
+        PrincipalId = principalId;
+    }
+
+    public bool NeedsEnabler() => Permission == AnalysisPermission.Read || Permission == AnalysisPermission.Invoke;
 }

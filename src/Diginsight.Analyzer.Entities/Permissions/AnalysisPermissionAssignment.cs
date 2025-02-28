@@ -2,7 +2,7 @@
 
 namespace Diginsight.Analyzer.Entities.Permissions;
 
-public class AnalysisPermissionAssignment : IPermissionAssignment<AnalysisPermission>
+public sealed class AnalysisPermissionAssignment : IPermissionAssignment<AnalysisPermission>
 {
     public PermissionKind Kind => PermissionKind.Analysis;
 

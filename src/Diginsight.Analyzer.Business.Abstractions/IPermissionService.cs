@@ -23,7 +23,13 @@ public interface IPermissionService
 
     Task<IQueryable<AnalysisContextSnapshot>> WhereCanReadAnalysisAsync(IQueryable<AnalysisContextSnapshot> queryable, CancellationToken cancellationToken);
 
-    Task CheckCanManagePermissionsAsync(CancellationToken cancellationToken);
-
     Task CheckCanManagePluginsAsync(CancellationToken cancellationToken);
+
+    IAsyncEnumerable<IPermissionAssignment> GetPermissionAssignmentsAE(
+        ValueTuple<PermissionKind>? optionalKind, ValueTuple<Guid?>? optionalPrincipalId, CancellationToken cancellationToken
+    );
+
+    Task AssignPermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
+
+    Task DeletePermissionAsync(IPermissionAssignment permissionAssignment, CancellationToken cancellationToken);
 }
