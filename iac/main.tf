@@ -90,7 +90,8 @@ resource "azuread_group_without_members" "contributors" {
 }
 
 resource "azuread_group_member" "contributors" {
-  for_each         = toset(data.azuread_users.contributors.object_ids)
+  for_each = toset(data.azuread_users.contributors.object_ids)
+
   member_object_id = each.value
   group_object_id  = azuread_group_without_members.contributors.object_id
 }
@@ -101,9 +102,16 @@ resource "azuread_application_registration" "main" {
 }
 
 resource "azuread_application_owner" "main" {
-  for_each        = toset(data.azuread_users.owners.object_ids)
+  for_each = toset(data.azuread_users.owners.object_ids)
+
   owner_object_id = each.value
   application_id  = azuread_application_registration.main.id
+}
+
+# TODO Other features of the application registration
+
+data "azuread_service_principal" "main" {
+  client_id = azuread_application_registration.main.client_id
 }
 
 resource "azurerm_resource_group" "main" {
@@ -252,7 +260,17 @@ resource "azurerm_storage_account" "main" {
   cross_tenant_replication_enabled = false
 }
 
-# TODO IAM of Storage Account
+resource "azurerm_role_assignment" "stg_owner" {
+  scope                = azurerm_storage_account.main.id
+  principal_id         = azuread_group_without_members.contributors.object_id
+  role_definition_name = "Storage Blob Data Owner"
+}
+
+resource "azurerm_role_assignment" "stg_contributor" {
+  scope                = azurerm_storage_account.main.id
+  principal_id         = data.azuread_service_principal.main.object_id
+  role_definition_name = "Storage Blob Data Contributor"
+}
 
 resource "random_uuid" "stg_nic_ipconfig" {
   keepers = {
@@ -339,7 +357,7 @@ resource "azurerm_role_assignment" "cfg_owner" {
 
 resource "azurerm_role_assignment" "cfg_reader" {
   scope                = azurerm_app_configuration.main.id
-  principal_id         = azuread_application_registration.main.object_id
+  principal_id         = data.azuread_service_principal.main.object_id
   role_definition_name = "App Configuration Data Reader"
 }
 
@@ -410,7 +428,69 @@ resource "azurerm_private_endpoint" "cfg" {
   }
 }
 
-# TODO Entries in App Configuration
+resource "azurerm_app_configuration_key" "aad_domain" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Api:AzureAd:Domain"
+  value                  = "fdpo.onmicrosoft.com"
+}
+
+resource "azurerm_app_configuration_key" "aad_instance" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Api:AzureAd:Instance"
+  value                  = "https://login.microsoftonline.com/"
+}
+
+resource "azurerm_app_configuration_key" "aad_tenantid" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Api:AzureAd:TenantId"
+  value                  = local.tenant_id
+}
+
+resource "azurerm_app_configuration_key" "aad_clientid" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Api:AzureAd:ClientId"
+  value                  = azuread_application_registration.main.client_id
+}
+
+resource "azurerm_app_configuration_key" "dig_console_width_deployed" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Diginsight:Console:TotalWidth"
+  label                  = "deployed"
+  value                  = "0"
+}
+
+resource "azurerm_app_configuration_key" "dig_console_width_local" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Diginsight:Console:TotalWidth"
+  label                  = "local"
+  value                  = "-1"
+}
+
+resource "azurerm_app_configuration_key" "dig_console_color_deployed" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Diginsight:Console:UseColor"
+  label                  = "deployed"
+  value                  = "false"
+}
+
+resource "azurerm_app_configuration_key" "dig_console_color_local" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Diginsight:Console:UseColor"
+  label                  = "local"
+  value                  = "true"
+}
+
+resource "azurerm_app_configuration_key" "repos_blob" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Repositories:BlobStorageUri"
+  value                  = azurerm_storage_account.main.primary_blob_endpoint
+}
+
+resource "azurerm_app_configuration_key" "repos_cdb" {
+  configuration_store_id = azurerm_app_configuration.main.id
+  key                    = "Repositories:CosmosAccountEndpoint"
+  value                  = azurerm_cosmosdb_account.main.endpoint
+}
 
 resource "azurerm_cosmosdb_account" "main" {
   name                          = "diginsight-analyzer-cdb-${var.suffix}"
@@ -434,7 +514,24 @@ resource "azurerm_cosmosdb_account" "main" {
   }
 }
 
-# TODO IAM of Cosmos DB
+data "azurerm_cosmosdb_sql_role_definition" "contributor" {
+  account_name        = azurerm_cosmosdb_account.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  role_definition_id  = "00000000-0000-0000-0000-000000000002"
+}
+
+resource "azurerm_cosmosdb_sql_role_assignment" "contributors" {
+  for_each = toset([
+    azuread_group_without_members.contributors.object_id,
+    data.azuread_service_principal.main.object_id
+  ])
+
+  account_name        = azurerm_cosmosdb_account.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  scope               = azurerm_cosmosdb_account.main.id
+  principal_id        = each.value
+  role_definition_id  = data.azurerm_cosmosdb_sql_role_definition.contributor.id
+}
 
 resource "random_uuid" "cdb_nic_ipconfig_pri" {
   keepers = {
