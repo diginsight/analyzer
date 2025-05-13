@@ -34,10 +34,24 @@ variable "rg" {
   })
 }
 
+variable "ip" {
+  type = object({
+    prefix   = string
+    vpn_cidr = string
+  })
+}
+
 variable "stg" {
   type = object({
     account_tier             = string
     account_replication_type = string
+  })
+}
+
+variable "users" {
+  type = object({
+    owners       = list(string)
+    contributors = list(string)
   })
 }
 
@@ -60,13 +74,36 @@ provider "azurerm" {
 
 provider "random" {}
 
-data "azuread_group" "contributors" {
-  display_name = "diginsight-analyzer-contributors"
+data "azuread_users" "owners" {
+  user_principal_names = var.users.owners
 }
 
-resource "azuread_application" "main" {
+data "azuread_users" "contributors" {
+  user_principal_names = var.users.contributors
+}
+
+resource "azuread_group_without_members" "contributors" {
+  display_name     = "diginsight-analyzer-contributors"
+  security_enabled = true
+  mail_enabled     = false
+  owners           = data.azuread_users.owners.object_ids
+}
+
+resource "azuread_group_member" "contributors" {
+  for_each         = toset(data.azuread_users.contributors.object_ids)
+  member_object_id = each.value
+  group_object_id  = azuread_group_without_members.contributors.object_id
+}
+
+resource "azuread_application_registration" "main" {
   display_name                 = "diginsight-analyzer"
   service_management_reference = "e4847f9a-c5dc-435d-9d53-9b9c65b154e7"
+}
+
+resource "azuread_application_owner" "main" {
+  for_each        = toset(data.azuread_users.owners.object_ids)
+  owner_object_id = each.value
+  application_id  = azuread_application_registration.main.id
 }
 
 resource "azurerm_resource_group" "main" {
@@ -92,7 +129,7 @@ resource "azurerm_virtual_network" "main" {
   location            = local.location
   resource_group_name = azurerm_resource_group.main.name
   address_space = [
-    "10.0.0.0/16"
+    "${var.ip.prefix}.0.0/16"
   ]
 }
 
@@ -100,7 +137,7 @@ resource "azurerm_subnet" "infra" {
   name                            = "infra"
   virtual_network_name            = azurerm_virtual_network.main.name
   resource_group_name             = azurerm_resource_group.main.name
-  address_prefixes                = ["10.0.0.0/24"]
+  address_prefixes                = ["${var.ip.prefix}.0.0/24"]
   default_outbound_access_enabled = false
 }
 
@@ -120,7 +157,7 @@ resource "azurerm_subnet" "dns" {
   virtual_network_name = azurerm_virtual_network.main.name
   resource_group_name  = azurerm_resource_group.main.name
   address_prefixes = [
-    "10.0.1.32/28"
+    "${var.ip.prefix}.1.32/28"
   ]
 
   delegation {
@@ -174,7 +211,7 @@ resource "azurerm_subnet" "vngw" {
   name                 = "GatewaySubnet"
   virtual_network_name = azurerm_virtual_network.main.name
   resource_group_name  = azurerm_resource_group.main.name
-  address_prefixes     = ["10.0.1.0/27"]
+  address_prefixes     = ["${var.ip.prefix}.1.0/27"]
 }
 
 resource "azurerm_virtual_network_gateway" "main" {
@@ -191,11 +228,11 @@ resource "azurerm_virtual_network_gateway" "main" {
   }
 
   custom_route {
-    address_prefixes = ["10.0.0.0/16"]
+    address_prefixes = ["${var.ip.prefix}.0.0/16"]
   }
 
   vpn_client_configuration {
-    address_space = ["10.1.0.0/29"]
+    address_space = [var.ip.vpn_cidr]
     aad_audience  = "c632b3df-fb67-4d84-bdcf-b95ad541b5c8"
     aad_issuer    = "https://sts.windows.net/${local.tenant_id}/"
     aad_tenant    = "https://login.microsoftonline.com/${local.tenant_id}"
@@ -296,13 +333,13 @@ resource "azurerm_app_configuration" "main" {
 
 resource "azurerm_role_assignment" "cfg_owner" {
   scope                = azurerm_app_configuration.main.id
-  principal_id         = data.azuread_group.contributors.object_id
+  principal_id         = azuread_group_without_members.contributors.object_id
   role_definition_name = "App Configuration Data Owner"
 }
 
 resource "azurerm_role_assignment" "cfg_reader" {
   scope                = azurerm_app_configuration.main.id
-  principal_id         = azuread_application.main.object_id
+  principal_id         = azuread_application_registration.main.object_id
   role_definition_name = "App Configuration Data Reader"
 }
 
