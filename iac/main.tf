@@ -75,11 +75,11 @@ provider "azurerm" {
 provider "random" {}
 
 data "azuread_users" "owners" {
-  user_principal_names = var.users.owners
+  user_principal_names = [for u in var.users.owners : "${u}_microsoft.com#EXT#@fdpo.onmicrosoft.com"]
 }
 
 data "azuread_users" "contributors" {
-  user_principal_names = var.users.contributors
+  user_principal_names = [for u in var.users.contributors : "${u}_microsoft.com#EXT#@fdpo.onmicrosoft.com"]
 }
 
 resource "azuread_group_without_members" "contributors" {
@@ -339,7 +339,15 @@ resource "azurerm_private_endpoint" "stg" {
   }
 }
 
-# TODO Containers in Storage Account
+#resource "azurerm_storage_container" "analyses" {
+#  name               = "analyses"
+#  storage_account_id = azurerm_storage_account.main.id
+#}
+
+#resource "azurerm_storage_container" "plugins" {
+#  name               = "plugins"
+#  storage_account_id = azurerm_storage_account.main.id
+#}
 
 resource "azurerm_app_configuration" "main" {
   name                = "diginsight-analyzer-cfg-${var.suffix}"
@@ -631,4 +639,96 @@ resource "azurerm_private_endpoint" "cdb" {
   }
 }
 
-# TODO Databases and collections in Cosmos DB
+resource "azurerm_cosmosdb_sql_database" "analyzer" {
+  name                = "analyzer"
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.main.name
+}
+
+resource "azurerm_cosmosdb_sql_container" "analyses" {
+  name                  = "analyses"
+  resource_group_name   = azurerm_resource_group.main.name
+  account_name          = azurerm_cosmosdb_account.main.name
+  database_name         = azurerm_cosmosdb_sql_database.analyzer.name
+  partition_key_paths   = ["/id"]
+  partition_key_version = 2
+
+  autoscale_settings {
+    max_throughput = 1000
+  }
+
+  indexing_policy {
+    included_path {
+      path = "/status/?"
+    }
+    included_path {
+      path = "/queuedAt/?"
+    }
+    included_path {
+      path = "/startedAt/?"
+    }
+    included_path {
+      path = "/analysisId/?"
+    }
+    included_path {
+      path = "/attempt/?"
+    }
+    included_path {
+      path = "/kind/?"
+    }
+    excluded_path {
+      path = "/*"
+    }
+  }
+}
+
+resource "azurerm_cosmosdb_sql_container" "leases" {
+  name                  = "leases"
+  resource_group_name   = azurerm_resource_group.main.name
+  account_name          = azurerm_cosmosdb_account.main.name
+  database_name         = azurerm_cosmosdb_sql_database.analyzer.name
+  partition_key_paths   = ["/id"]
+  partition_key_version = 2
+  default_ttl           = -1
+
+  autoscale_settings {
+    max_throughput = 1000
+  }
+
+  indexing_policy {
+    included_path {
+      path = "/kind/?"
+    }
+    included_path {
+      path = "/agentPool/?"
+    }
+    excluded_path {
+      path = "/*"
+    }
+  }
+}
+
+resource "azurerm_cosmosdb_sql_container" "permission_assignments" {
+  name                  = "permissionAssignments"
+  resource_group_name   = azurerm_resource_group.main.name
+  account_name          = azurerm_cosmosdb_account.main.name
+  database_name         = azurerm_cosmosdb_sql_database.analyzer.name
+  partition_key_paths   = ["/kind"]
+  partition_key_version = 2
+
+  autoscale_settings {
+    max_throughput = 1000
+  }
+
+  indexing_policy {
+    included_path {
+      path = "/principalId/?"
+    }
+    included_path {
+      path = "/subjectId/?"
+    }
+    excluded_path {
+      path = "/*"
+    }
+  }
+}

@@ -16,11 +16,11 @@ stg = {
 
 users = {
   owners = [
-    "filippomineo_microsoft.com#EXT#@fdpo.onmicrosoft.com",
-    "darioa_microsoft.com#EXT#@fdpo.onmicrosoft.com"
+    "filippomineo",
+    "darioa"
   ]
   contributors = [
-    "filippomineo_microsoft.com#EXT#@fdpo.onmicrosoft.com",
-    "darioa_microsoft.com#EXT#@fdpo.onmicrosoft.com"
+    "filippomineo",
+    "darioa"
   ]
 }
